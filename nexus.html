@@ -1710,6 +1710,20 @@ var App = {
     container.innerHTML = '';
     var msgs = Store.messages();
 
+    // Empty state: no messages, no run → show entry prompt
+    if (msgs.length === 0) {
+      var run = Store._db.currentRun;
+      if (!run) {
+        container.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;text-align:center">' +
+          '<div style="font-family:var(--font-mono);font-size:9px;color:var(--accent);letter-spacing:.14em;margin-bottom:8px">NEXUS</div>' +
+          '<div style="font-size:16px;color:var(--text);letter-spacing:.04em;font-family:var(--font-serif);margin-bottom:8px">主神空间就绪</div>' +
+          '<div style="font-size:11px;color:var(--text-3);line-height:1.7;margin-bottom:20px">你已登录NEXUS。每一扇门后都是一个世界。<br>选择你的第一个副本，开始穿越之旅。</div>' +
+          '<button class="btn-accent" style="padding:12px 28px;font-size:13px;border-radius:var(--radius)" onclick="App._startNewRun()">进入副本</button>' +
+        '</div>';
+      }
+      return;
+    }
+
     msgs.forEach(function(msg) {
       var el = document.createElement('div');
       el.className = 'msg msg-' + msg.type;
@@ -2182,65 +2196,194 @@ var App = {
   /* ============================================================
      RUN MANAGEMENT
      ============================================================ */
+
+  /** Random helpers for run generation */
+  _randomPick: function(arr) { return arr[Math.floor(Math.random() * arr.length)]; },
+
+  _rollRunParams: function() {
+    var types = ['古言宫斗','古言仙侠','现代都市','末世求生','玄幻修仙','科幻星际','西幻冒险','娱乐圈','豪门总裁'];
+    var difficulties = ['简单','普通','普通','普通','困难','困难','极难'];
+    var taskTypes = ['好感度','节点','拯救','对抗','收集','生存'];
+    var type = this._randomPick(types);
+    var diff = this._randomPick(difficulties);
+    var tType = this._randomPick(taskTypes);
+    // Base reward
+    var baseReward = { '简单':100, '普通':250, '困难':500, '极难':800 }[diff] || 200;
+    baseReward += Math.floor(Math.random() * baseReward * 0.5); // ±50% jitter
+    return { type:type, difficulty:diff, taskType:tType, baseReward:baseReward };
+  },
+
+  /** Show run preview modal: random params + AI-generated details */
   _startNewRun: function() {
     var self = this;
     if (this._aiBusy) return;
 
-    this._showToast('正在生成副本...');
     var p = Store.player();
+    var params = this._rollRunParams();
 
-    var prompt = '请生成一个穿书副本。玩家是穿越者「' + (p.name || '未设定') + '」。\n' +
-      '随机选择一个小说类型（古言宫斗、古言仙侠、现代都市、末世求生、玄幻修仙、科幻星际、西幻冒险、娱乐圈、豪门总裁等）。\n' +
-      '用JSON格式返回副本信息：\n' +
-      '{\n' +
-      '  "type": "副本类型",\n' +
-      '  "title": "书名",\n' +
-      '  "worldDesc": "世界观简述",\n' +
-      '  "playerRole": "玩家在书中的身份",\n' +
-      '  "startLocation": "初始地点",\n' +
-      '  "startTime": "书中初始时间",\n' +
-      '  "difficulty": "简单/普通/困难/极难",\n' +
-      '  "baseReward": 积分数字,\n' +
-      '  "mainTask": {"name": "主线任务名", "desc": "任务描述"},\n' +
-      '  "sideTasks": [{"name": "支线任务名", "desc": "任务描述"}]\n' +
-      '}\n' +
-      '只返回JSON，不要其他内容。';
+    // Show loading preview first
+    var previewHTML =
+      '<div style="text-align:center;padding:4px 0 16px">' +
+        '<div style="font-family:var(--font-mono);font-size:10px;color:var(--accent);letter-spacing:.12em;margin-bottom:4px">主神空间</div>' +
+        '<div style="font-size:18px;color:var(--text);letter-spacing:.04em;font-family:var(--font-serif)">副本预览</div>' +
+      '</div>' +
+      '<div id="run-preview-body" style="text-align:center;padding:20px 0">' +
+        '<div style="color:var(--text-3);font-size:12px">正在生成副本...</div>' +
+        '<div style="margin-top:8px">' +
+          '<span style="font-size:11px;color:var(--accent);font-family:var(--font-mono)">' + App.escapeHtml(params.type) + '</span>' +
+          '<span style="font-size:10px;color:var(--text-3);margin:0 6px">|</span>' +
+          '<span style="font-size:11px;color:var(--text-2)">' + App.escapeHtml(params.difficulty) + '</span>' +
+          '<span style="font-size:10px;color:var(--text-3);margin:0 6px">|</span>' +
+          '<span style="font-size:11px;color:var(--text-2)">' + App.escapeHtml(params.taskType) + '任务</span>' +
+        '</div>' +
+      '</div>' +
+      '<div style="display:flex;gap:8px">' +
+        '<button class="btn-accent" style="flex:2;padding:10px 0;font-size:12px;border-radius:var(--radius);opacity:0.5" disabled id="run-confirm-btn">确认进入</button>' +
+        '<button style="flex:1;padding:10px 0;font-size:11px;border-radius:var(--radius);border:0.5px solid var(--border);color:var(--text-2);background:transparent;cursor:pointer;font-family:var(--font-mono);letter-spacing:.04em;transition:all .2s" onclick="App._startNewRun()">重随</button>' +
+      '</div>';
+
+    document.getElementById('center-modal-box').innerHTML = previewHTML;
+    document.getElementById('center-modal').classList.add('open');
+
+    // Call AI for details
+    var prompt = '生成一个穿书副本。\n' +
+      '类型：' + params.type + '\n' +
+      '难度：' + params.difficulty + '\n' +
+      '任务类型：' + params.taskType + '\n' +
+      '玩家：穿越者「' + (p.name||'未设定') + '」\n\n' +
+      '返回严格JSON：\n' +
+      '{"title":"书名","worldDesc":"1-2句世界观简述","playerRole":"玩家在书中的身份（要具体，1句）","startLocation":"初始场景地点","startTime":"书中初始时间","mainTask":{"name":"主线任务名","desc":"任务描述"},"sideTasks":[{"name":"支线任务名","desc":"任务描述"}]}';
 
     AI.call([
-      { role: 'system', content: '你是NEXUS主神空间的副本生成器。你只返回严格的JSON，不包含任何其他文字。' },
-      { role: 'user', content: prompt }
-    ], { temperature: 1.0, maxTokens: 1024 }).then(function(resp) {
-      if (!resp || resp.error) { Store.addMessage({ type:'system', content:'副本生成失败：(API) ' + (resp && resp.msg || '未知错误') }); self.renderMessages(); return; }
+      { role:'system', content:'你是NEXUS副本生成器。只返回严格JSON。书名要有吸引力。身份设定要融入世界观。任务描述要具体可执行。' },
+      { role:'user', content:prompt }
+    ], { temperature:1.0, maxTokens:1024 }).then(function(resp) {
+      var bodyEl = document.getElementById('run-preview-body');
+      var btnEl = document.getElementById('run-confirm-btn');
+      if (!bodyEl) return;
+
+      if (!resp || resp.error) {
+        bodyEl.innerHTML = '<div style="color:#8E2A2A;font-size:12px">生成失败：' + (resp&&resp.msg||'未知') + '</div>';
+        if (btnEl) { btnEl.disabled = true; btnEl.style.opacity = '0.4'; }
+        return;
+      }
+
       try {
-        // Extract JSON
         var jsonStr = resp.text.trim();
         var idx = jsonStr.indexOf('{');
         if (idx > 0) jsonStr = jsonStr.slice(idx);
         idx = jsonStr.lastIndexOf('}');
-        if (idx >= 0) jsonStr = jsonStr.slice(0, idx + 1);
-        var runData = JSON.parse(jsonStr);
-        runData.id = 'r_' + Date.now();
-        runData.startedAt = Date.now();
-        runData.npcs = [];
-        runData.companions = [];
-        runData.completedTasks = [];
-        runData.taskLog = {};
-        Store.startRun(runData);
-        Store.addMessage({ type: 'system', content: '【副本开始】《' + runData.title + '》— ' + runData.type + ' | 难度：' + runData.difficulty });
-        Store.addMessage({ type: 'narrative', content: '你站在主神空间的光柱中。周围的空间开始扭曲，世界在你眼前重组。\n\n当你再次睁开眼睛，你已经身处《' + runData.title + '》的世界。\n\n' + (runData.worldDesc || '') + '\n\n你的身份是：' + (runData.playerRole || '未知') + '。\n当前地点：' + (runData.startLocation || '未知') + '。\n时间：' + (runData.startTime || '未知') + '。\n\n主线任务：' + (runData.mainTask && runData.mainTask.name || '未知') });
-        self._updateRunBar();
+        if (idx >= 0) jsonStr = jsonStr.slice(0, idx+1);
+        var detail = JSON.parse(jsonStr);
+
+        // Store params + detail for confirm
+        self._pendingRun = { params:params, detail:detail };
+
+        var typeIcons = { '古言宫斗':'🏯','古言仙侠':'🗡️','现代都市':'🏙️','末世求生':'🧟','玄幻修仙':'☯️','科幻星际':'🚀','西幻冒险':'🏰','娱乐圈':'🎬','豪门总裁':'💼' };
+        var diffColors = { '简单':'#6B8','普通':'#AAC','困难':'#DA8','极难':'#E55' };
+        var taskTypeLabels = { '好感度':'与关键角色建立羁绊','节点':'推动剧情到达关键转折','拯救':'拯救角色或改变其命运','对抗':'对抗势力或揭露阴谋','收集':'获取重要物品或情报','生存':'在危险环境中存活指定时间' };
+
+        bodyEl.innerHTML =
+          '<div style="margin-bottom:12px">' +
+            '<div style="font-size:16px;color:var(--text);font-family:var(--font-serif);letter-spacing:.02em">《' + App.escapeHtml(detail.title||'未知') + '》</div>' +
+          '</div>' +
+          '<div style="display:flex;justify-content:center;gap:12px;margin-bottom:14px;flex-wrap:wrap">' +
+            '<span style="font-size:10px;color:var(--text-3);background:var(--surface);padding:4px 10px;border-radius:10px;font-family:var(--font-mono)">' + (typeIcons[params.type]||'') + ' ' + App.escapeHtml(params.type) + '</span>' +
+            '<span style="font-size:10px;color:' + (diffColors[params.difficulty]||'#888') + ';background:var(--surface);padding:4px 10px;border-radius:10px;font-family:var(--font-mono)">' + App.escapeHtml(params.difficulty) + '</span>' +
+            '<span style="font-size:10px;color:var(--accent);background:var(--surface);padding:4px 10px;border-radius:10px;font-family:var(--font-mono)">' + params.baseReward + ' PTS</span>' +
+          '</div>' +
+          '<div style="font-size:11px;color:var(--text-2);line-height:1.6;text-align:left;padding:0 4px">' +
+            '<div style="margin-bottom:6px"><span style="color:var(--text-3)">世界观</span> ' + App.escapeHtml(detail.worldDesc||'') + '</div>' +
+            '<div style="margin-bottom:6px"><span style="color:var(--text-3)">身份</span> ' + App.escapeHtml(detail.playerRole||'') + '</div>' +
+            '<div style="margin-bottom:6px"><span style="color:var(--text-3)">初始</span> ' + App.escapeHtml(detail.startLocation||'') + ' · ' + App.escapeHtml(detail.startTime||'') + '</div>' +
+            '<div style="margin-top:10px;padding-top:8px;border-top:0.5px solid var(--divider)">' +
+              '<div style="color:var(--text-3);font-size:9px;font-family:var(--font-mono);margin-bottom:4px">' + App.escapeHtml(params.taskType) + '任务</div>' +
+              '<div style="color:var(--text);font-size:12px">◆ ' + App.escapeHtml((detail.mainTask&&detail.mainTask.name)||'') + '</div>' +
+              '<div style="color:var(--text-2);font-size:10px;margin-top:2px">' + App.escapeHtml((detail.mainTask&&detail.mainTask.desc)||'') + '</div>' +
+            '</div>' +
+            (detail.sideTasks && detail.sideTasks.length > 0
+              ? detail.sideTasks.map(function(t) { return '<div style="margin-top:4px;color:var(--text-3);font-size:10px">◇ ' + App.escapeHtml(t.name||'') + '</div>'; }).join('')
+              : '') +
+          '</div>';
+
+        if (btnEl) { btnEl.disabled = false; btnEl.style.opacity = '1'; btnEl.onclick = function() { self._confirmRun(); }; }
+      } catch(e) {
+        bodyEl.innerHTML = '<div style="color:#E55;font-size:12px">解析失败：' + e.message + '</div>';
+        if (btnEl) { btnEl.disabled = true; btnEl.style.opacity = '0.4'; }
+      }
+    });
+  },
+
+  /** Confirm and enter the previewed run */
+  _confirmRun: function() {
+    var data = this._pendingRun;
+    if (!data) return;
+    delete this._pendingRun;
+
+    var runData = {
+      id: 'r_' + Date.now(),
+      type: data.params.type,
+      title: data.detail.title,
+      worldDesc: data.detail.worldDesc,
+      playerRole: data.detail.playerRole,
+      startLocation: data.detail.startLocation,
+      startTime: data.detail.startTime,
+      difficulty: data.params.difficulty,
+      baseReward: data.params.baseReward,
+      mainTask: data.detail.mainTask,
+      sideTasks: data.detail.sideTasks || [],
+      taskType: data.params.taskType,
+      startedAt: Date.now(),
+      npcs: [],
+      companions: [],
+      completedTasks: [],
+      taskLog: {},
+      currentLocation: data.detail.startLocation,
+      currentTime: data.detail.startTime
+    };
+
+    Store.startRun(runData);
+    document.getElementById('center-modal').classList.remove('open');
+    this.navigateTo('story');
+
+    Store.addMessage({ type:'system', content:'【副本开始】《' + runData.title + '》— ' + runData.type + ' | ' + runData.difficulty + ' | 奖励 ' + runData.baseReward + ' PTS' });
+    Store.addMessage({ type:'narrative', content:'主神空间的光柱将你笼罩。世界在你眼前解构、重组——无数书页翻过，文字在空中飞舞。\n\n当你再次睁开眼，你已经身在《' + runData.title + '》的世界。\n\n' + (runData.worldDesc||'') + '\n\n你是' + (runData.playerRole||'未知') + '。\n当前：' + (runData.startLocation||'未知') + '。\n时间：' + (runData.startTime||'未知') + '。\n\n◆ 主线任务：' + (runData.mainTask&&runData.mainTask.name||'未知') });
+
+    this._updateRunBar();
+    this.renderMessages();
+    this.renderStatus();
+    this.renderSpace();
+    this.scrollToBottom();
+    Store.save();
+
+    // Trigger AI opening narration
+    var self = this;
+    setTimeout(function() {
+      var prompt = '副本《' + runData.title + '》刚开始。玩家是' + (runData.playerRole||'穿越者') + '，刚进入' + (runData.startLocation||'这个世界') + '。请写一段开场叙述——描述玩家看到的、听到的、感觉到的环境。营造氛围。然后引入第一个场景/角色。用第二人称"你"。如果是现代/都市类型就口语化一些；古言/仙侠就用偏文言的叙述。最后给出1-2个行动暗示。\n\n记得在叙述后使用标记（如果合适的话）：首次登场的角色用[NPC name:type:desc]，当前位置变化用[LOCATION]，等。';
+      self._aiBusy = true;
+      self._setCoreState('loading');
+      var messages = [{ role:'system', content:buildMainSystemPrompt() }, { role:'user', content:prompt }];
+      AI.streamCall(messages,
+        function(chunk, full) { /* streaming handled by _triggerAI-style bubble */ },
+        function() {}, // done — handled below
+        function(err) { self._aiBusy = false; self._setCoreState('idle'); },
+        { temperature:0.85, maxTokens:1024 }
+      );
+      // For simplicity, use non-streaming call for the opening
+      AI.call(messages, { temperature:0.85, maxTokens:1024 }).then(function(resp) {
+        if (resp && resp.ok) {
+          var cmds = AI.parseCommands(resp.text);
+          var clean = AI.parseResponse(resp.text);
+          if (clean) Store.addMessage({ type:'narrative', content:clean });
+          AI.applyCommands(cmds);
+        }
+        self._aiBusy = false;
+        self._setCoreState('idle');
         self.renderMessages();
-        self.renderStatus();
         self.scrollToBottom();
         Store.save();
-      } catch(e) {
-        Store.addMessage({ type: 'system', content: '副本生成失败，请重试。' + e.message });
-        self.renderMessages();
-      }
-    }).catch(function(err) {
-      Store.addMessage({ type: 'system', content: 'API错误：' + (err.message || '连接失败'), meta: { isError: true } });
-      self.renderMessages();
-    });
+      });
+    }, 500);
   },
 
   _endRun: function(result, reason) {
