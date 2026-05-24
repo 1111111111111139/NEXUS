@@ -472,10 +472,12 @@ body.light .msg-action-line{color:#888}
       <div class="space-subtab active" data-panel="shop">商店</div>
       <div class="space-subtab" data-panel="travelers">通讯录</div>
       <div class="space-subtab" data-panel="records">记录</div>
+      <div class="space-subtab" data-panel="chars">角色</div>
     </div>
     <div id="space-panel-shop" class="space-panel active"></div>
     <div id="space-panel-travelers" class="space-panel"></div>
     <div id="space-panel-records" class="space-panel"></div>
+    <div id="space-panel-chars" class="space-panel"></div>
   </div>
 
   <!-- Status Page -->
@@ -1594,6 +1596,7 @@ var App = {
       if (panel) panel.classList.add('active');
       if (panelName === 'travelers') self.renderTravelerList();
       if (panelName === 'records') self.renderRunRecords();
+      if (panelName === 'chars') self.renderCharacterManager();
     });
 
     // Run info bar
@@ -1834,6 +1837,140 @@ var App = {
         '<div class="run-record-result ' + resultCls + '">' + App.escapeHtml(r.result || '') + '</div>' +
       '</div>';
     }).join('');
+  },
+
+  /* ============================================================
+     CHARACTER MANAGER — important NPC toggle + affection + memories
+     ============================================================ */
+  renderCharacterManager: function() {
+    var panel = document.getElementById('space-panel-chars');
+    var run = Store._db.currentRun;
+    var self = this;
+
+    // Collect all known NPCs: current run npcs + importantNPCs from past runs
+    var allChars = [];
+    var seen = {};
+    // Current run NPCs
+    if (run && run.npcs) {
+      run.npcs.forEach(function(n) {
+        if (!seen[n.name]) { seen[n.name] = true; allChars.push(n); }
+      });
+    }
+    // Past important NPCs not in current run
+    var impDict = Store._db.importantNPCs || {};
+    Object.keys(impDict).forEach(function(name) {
+      if (!seen[name]) { seen[name] = true; allChars.push(impDict[name]); }
+    });
+
+    if (allChars.length === 0) {
+      panel.innerHTML = '<div style="text-align:center;color:var(--text-3);padding:40px 0;font-size:12px;line-height:1.8">尚未遇到任何角色<br><span style="font-size:10px">进入副本后，AI引入的NPC将出现在这里</span></div>';
+      return;
+    }
+
+    // Sort: important first, then by affection
+    allChars.sort(function(a, b) {
+      if (a.isImportant !== b.isImportant) return a.isImportant ? -1 : 1;
+      return (b.affection || 0) - (a.affection || 0);
+    });
+
+    panel.innerHTML = '<div style="font-size:10px;color:var(--text-3);font-family:var(--font-mono);letter-spacing:.06em;margin-bottom:10px">' +
+      '共 ' + allChars.length + ' 个角色 · ' + allChars.filter(function(c) { return c.isImportant; }).length + ' 个重要' +
+    '</div>' +
+    allChars.map(function(c, idx) {
+      var isImp = c.isImportant;
+      var aff = c.affection || 0;
+      var affLabel = aff >= 60 ? '深厚' : (aff >= 30 ? '友好' : (aff >= 0 ? '中立' : (aff >= -30 ? '冷淡' : '敌视')));
+      var affColor = aff >= 30 ? 'var(--accent)' : (aff >= 0 ? 'var(--text-2)' : '#8E2A2A');
+      var rate = c.affectionRate || 'normal';
+      var mems = c.longTermMemories || [];
+      var memId = 'char-mems-' + idx;
+
+      return '<div style="background:var(--surface);border:0.5px solid ' + (isImp ? 'var(--accent-dim)' : 'var(--divider)') + ';border-radius:var(--radius-lg);padding:14px;margin-bottom:10px">' +
+        // Header row
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">' +
+          '<div>' +
+            '<span style="font-size:14px;color:var(--text)">' + App.escapeHtml(c.name) + '</span>' +
+            '<span style="font-size:9px;color:var(--text-3);margin-left:6px;font-family:var(--font-mono)">' + App.escapeHtml(c.type || '') + '</span>' +
+          '</div>' +
+          '<div style="display:flex;align-items:center;gap:8px">' +
+            '<span style="font-size:11px;color:' + affColor + ';font-family:var(--font-mono)">' + aff + ' [' + affLabel + ']</span>' +
+            '<label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:10px;color:var(--text-3)">' +
+              '<input type="checkbox" ' + (isImp ? 'checked' : '') + ' onchange="App._toggleImportant(\'' + App.escapeHtml(c.name) + '\',this.checked)" style="accent-color:var(--accent)"> 重要' +
+            '</label>' +
+          '</div>' +
+        '</div>' +
+
+        // Affection rate selector
+        '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:10px">' +
+          '<span style="color:var(--text-3);font-family:var(--font-mono)">好感速度</span>' +
+          ['slow','normal','fast'].map(function(r) {
+            var labels = { slow:'慢', normal:'正常', fast:'快' };
+            var sel = rate === r;
+            return '<button style="padding:3px 10px;border-radius:10px;font-size:10px;cursor:pointer;border:0.5px solid ' + (sel ? 'var(--accent)' : 'var(--divider)') + ';color:' + (sel ? 'var(--accent)' : 'var(--text-3)') + ';background:' + (sel ? 'var(--accent-dim)' : 'transparent') + ';font-family:var(--font-mono)" onclick="App._setAffectionRate(\'' + App.escapeHtml(c.name) + '\',\'' + r + '\')">' + labels[r] + '</button>';
+          }).join('') +
+        '</div>' +
+
+        // Memories
+        (mems.length > 0
+          ? '<div style="font-size:10px;color:var(--text-3);cursor:pointer;font-family:var(--font-mono)" onclick="var el=document.getElementById(\'' + memId + '\');el.style.display=el.style.display===\'none\'?\'\':\'none\'">记忆 (' + mems.length + '条) ▸</div>' +
+            '<div id="' + memId + '" style="display:none;margin-top:6px">' +
+              mems.slice().reverse().map(function(m) {
+                var tag = m.emotionTag === 'positive' ? '#4A8' : (m.emotionTag === 'negative' ? '#C55' : '#888');
+                return '<div style="padding:4px 0;border-bottom:0.5px solid var(--divider);font-size:10px;line-height:1.4">' +
+                  '<span style="color:' + tag + ';font-family:var(--font-mono);margin-right:4px">' + (m.emotionTag || '·') + '</span>' +
+                  '<span style="color:var(--text-2)">' + App.escapeHtml(m.event || '') + '</span>' +
+                '</div>';
+              }).join('') +
+            '</div>'
+          : '<div style="font-size:10px;color:var(--text-3)">暂无长期记忆</div>'
+        ) +
+      '</div>';
+    }).join('');
+  },
+
+  /** Toggle isImportant for a character */
+  _toggleImportant: function(name, val) {
+    // Update in current run
+    var run = Store._db.currentRun;
+    if (run && run.npcs) {
+      var npc = run.npcs.find(function(n) { return n.name === name; });
+      if (npc) { npc.isImportant = val; if (!val) { npc.longTermMemories = []; npc.affectionRate = 'normal'; } }
+    }
+    // Update in importantNPCs dict
+    var impDict = Store._db.importantNPCs || {};
+    if (val) {
+      if (!impDict[name]) {
+        var src = (run && run.npcs) ? run.npcs.find(function(n) { return n.name === name; }) : null;
+        impDict[name] = {
+          name: name,
+          type: src ? src.type : '',
+          desc: src ? src.desc : '',
+          affection: src ? (src.affection || 0) : 0,
+          affectionRate: 'normal',
+          isImportant: true,
+          longTermMemories: []
+        };
+      }
+      impDict[name].isImportant = true;
+    } else {
+      if (impDict[name]) delete impDict[name];
+    }
+    Store._db.importantNPCs = impDict;
+    Store.save();
+    this.renderCharacterManager();
+  },
+
+  /** Set affection rate for a character */
+  _setAffectionRate: function(name, rate) {
+    var run = Store._db.currentRun;
+    if (run && run.npcs) {
+      var npc = run.npcs.find(function(n) { return n.name === name; });
+      if (npc) npc.affectionRate = rate;
+    }
+    var impDict = Store._db.importantNPCs || {};
+    if (impDict[name]) impDict[name].affectionRate = rate;
+    Store.save();
+    this.renderCharacterManager();
   },
 
   /* ============================================================
