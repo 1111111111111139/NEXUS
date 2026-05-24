@@ -1604,6 +1604,9 @@ var App = {
 
     // Nexus core
     document.getElementById('nexus-core').addEventListener('click', function() { self.navigateTo('status'); });
+
+    // Center modal: click overlay to close
+    document.getElementById('center-modal').addEventListener('click', function(e) { if (e.target === this) { this.classList.remove('open'); } });
   },
 
   /* ============================================================
@@ -2223,6 +2226,7 @@ var App = {
 
     // Show loading preview first
     var previewHTML =
+      '<button style="position:absolute;top:12px;right:16px;font-size:18px;color:var(--text-3);cursor:pointer;line-height:1;padding:4px" onclick="document.getElementById(\'center-modal\').classList.remove(\'open\')">&times;</button>' +
       '<div style="text-align:center;padding:4px 0 16px">' +
         '<div style="font-family:var(--font-mono);font-size:10px;color:var(--accent);letter-spacing:.12em;margin-bottom:4px">主神空间</div>' +
         '<div style="font-size:18px;color:var(--text);letter-spacing:.04em;font-family:var(--font-serif)">副本预览</div>' +
