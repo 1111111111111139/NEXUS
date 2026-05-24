@@ -538,9 +538,9 @@ var DEFAULT_SHOP = [
 ];
 
 var DEFAULT_TRAVELERS = [
-  { id:'t1', name:'苏羽', gender:'male', appearance:'冷峻青年，眼角有道旧伤', background:'退役特种兵', personality:'寡言但可靠', points:3200, level:3, online:true, contactUnlocked:true },
-  { id:'t2', name:'林初夏', gender:'female', appearance:'长发披肩，笑容温和', background:'前大厂程序员', personality:'理性冷静，擅长策略分析', points:5800, level:5, online:true, contactUnlocked:true },
-  { id:'t3', name:'沈夜', gender:'male', appearance:'黑色风衣，眼中带一丝阴沉', background:'未知，自称记者', personality:'神秘，偶尔流露偏执', points:1200, level:2, online:false, contactUnlocked:true }
+  { id:'t1', name:'苏羽', gender:'male', appearance:'冷峻青年，眼角有道旧伤', background:'退役特种兵', personality:'寡言但可靠', points:3200, level:3, online:true, contactUnlocked:true, isImportant:false, affection:0, affectionRate:'normal', longTermMemories:[] },
+  { id:'t2', name:'林初夏', gender:'female', appearance:'长发披肩，笑容温和', background:'前大厂程序员', personality:'理性冷静，擅长策略分析', points:5800, level:5, online:true, contactUnlocked:true, isImportant:false, affection:0, affectionRate:'normal', longTermMemories:[] },
+  { id:'t3', name:'沈夜', gender:'male', appearance:'黑色风衣，眼中带一丝阴沉', background:'未知，自称记者', personality:'神秘，偶尔流露偏执', points:1200, level:2, online:false, contactUnlocked:true, isImportant:false, affection:0, affectionRate:'normal', longTermMemories:[] }
 ];
 
 /* ============================================================
@@ -569,6 +569,7 @@ var Store = {
         messages: [],
         privateChats: {},
         shop: { purchased: [] },
+        importantNPCs: {},
         saveSlots: [],
         settings: { theme: 'dark', apiKey: '', model: 'gpt-4o-mini', baseUrl: '' }
       };
@@ -640,6 +641,97 @@ var Store = {
 
   hasPurchased: function(itemId) {
     return this._db.shop.purchased.some(function(p) { return p.id === itemId; });
+  },
+
+  /* ============================================================
+     IMPORTANT NPC SYSTEM — cross-run persistence
+     ============================================================ */
+
+  /** Persist important NPC data after a run ends. Regular NPC affection resets. */
+  _persistImportantNPCs: function(run) {
+    if (!run || !run.npcs) return;
+    if (!this._db.importantNPCs) this._db.importantNPCs = {};
+    var self = this;
+    run.npcs.forEach(function(n) {
+      if (n.isImportant) {
+        self._db.importantNPCs[n.name] = {
+          name: n.name,
+          type: n.type || '',
+          desc: n.desc || '',
+          affection: n.affection || 0,
+          affectionRate: n.affectionRate || 'normal',
+          isImportant: true,
+          longTermMemories: n.longTermMemories || []
+        };
+      }
+    });
+    this.save();
+  },
+
+  /** Retrieve important NPC data from previous runs */
+  _getImportantNPCData: function(name) {
+    var dict = this._db.importantNPCs || {};
+    return dict[name] || null;
+  },
+
+  /** Extract 3-5 key memories from this run for an important NPC */
+  _extractMemories: function(npc, runResult) {
+    if (!npc || !npc.longTermMemories) return;
+    var affection = npc.affection || 0;
+    var count = affection >= 60 ? 5 : (affection >= 30 ? 4 : 3);
+    var tags = ['neutral'];
+    if (affection >= 40) tags.push('positive');
+    if (affection <= -20) tags.push('negative');
+    if (runResult === '成功') tags.push('success');
+    else tags.push('failure');
+
+    // Generate memory entries from run context
+    var memories = [];
+    var run = this._db.currentRun;
+    if (run) {
+      memories.push({
+        time: Date.now(),
+        event: '在副本《' + (run.title||'未知') + '》中与玩家互动',
+        emotionTag: tags[Math.floor(Math.random() * tags.length)]
+      });
+      if (Math.abs(affection) >= 40) {
+        memories.push({
+          time: Date.now(),
+          event: (affection >= 0 ? '对玩家' : '对玩家') + (affection >= 40 ? '建立了深刻印象' : '留下了负面印象'),
+          emotionTag: affection >= 0 ? 'positive' : 'negative'
+        });
+      }
+      var detailCount = count - memories.length;
+      for (var i = 0; i < detailCount; i++) {
+        var events = [
+          '在' + (run.currentLocation||run.startLocation||'某处') + '的共同经历',
+          '关于' + (run.mainTask ? run.mainTask.name : '任务') + '的协作',
+          '副本中的一次关键对话',
+          '关于' + (run.type||'未知世界') + '的讨论',
+          '共同面对副本中的危险'
+        ];
+        memories.push({
+          time: Date.now() + i + 1,
+          event: events[Math.floor(Math.random() * events.length)],
+          emotionTag: tags[Math.floor(Math.random() * tags.length)]
+        });
+      }
+    }
+
+    // Merge and cap at 10
+    npc.longTermMemories = (npc.longTermMemories || []).concat(memories).slice(-10);
+  },
+
+  /** Compress oldest memories for an NPC (keep 5, summarize rest) */
+  _compressMemories: function(npc) {
+    if (!npc.longTermMemories || npc.longTermMemories.length <= 10) return;
+    var mems = npc.longTermMemories;
+    npc.longTermMemories = mems.slice(-5);
+    npc.longTermMemories.unshift({
+      time: mems[0].time,
+      event: '【早期记忆已压缩】共' + (mems.length - 5) + '条旧记忆',
+      emotionTag: 'neutral'
+    });
   },
 
   /** Private chat */
@@ -875,7 +967,11 @@ var AI = {
           var affDelta = parseInt(item.args[1]);
           if (run && run.npcs) {
             var npc = run.npcs.find(function(n) { return n.name === npcName; });
-            if (npc) { npc.affection = Math.max(-100, Math.min(100, (npc.affection || 0) + affDelta)); }
+            if (npc) {
+              var rate = { slow:0.5, normal:1, fast:2 }[npc.affectionRate || 'normal'] || 1;
+              var adjusted = Math.round(affDelta * rate);
+              npc.affection = Math.max(-100, Math.min(100, (npc.affection || 0) + adjusted));
+            }
           }
           App._showValueToast(npcName + ' 好感 ' + (affDelta >= 0 ? '+' : '') + affDelta, 'pts');
           break;
@@ -921,8 +1017,18 @@ var AI = {
           var nDesc = (item.args[2] || '').trim();
           if (run) {
             if (!run.npcs) run.npcs = [];
-            if (!run.npcs.find(function(n) { return n.name === nn; })) {
-              run.npcs.push({ name: nn, type: nType, desc: nDesc, affection: 0, met: true });
+            var existingNpc = run.npcs.find(function(n) { return n.name === nn; });
+            if (!existingNpc) {
+              // Check if this NPC has prior important data from previous runs
+              var priorMemory = Store._getImportantNPCData(nn);
+              run.npcs.push({
+                name: nn, type: nType, desc: nDesc,
+                affection: priorMemory ? priorMemory.affection : 0,
+                isImportant: priorMemory ? priorMemory.isImportant : false,
+                affectionRate: priorMemory ? priorMemory.affectionRate : 'normal',
+                longTermMemories: priorMemory ? (priorMemory.longTermMemories || []) : [],
+                met: true
+              });
             }
           }
           break;
@@ -933,7 +1039,7 @@ var AI = {
           if (run) {
             if (!run.companions) run.companions = [];
             if (!run.companions.find(function(c) { return c.name === tName; })) {
-              run.companions.push({ name: tName, desc: tDesc });
+              run.companions.push({ name: tName, desc: tDesc, isImportant: false, affection:0, affectionRate:'normal', longTermMemories:[] });
             }
           }
           break;
@@ -1154,6 +1260,36 @@ function buildMainSystemPrompt() {
   lines.push('6. 副本中的NPC可能死亡。NPC死亡后即从活跃角色中移除。');
   lines.push('7. 关键NPC的死亡可能影响主线任务的完成条件，请在叙事中自然体现。');
   lines.push('');
+
+  // ========================
+  // IMPORTANT NPC SYSTEM
+  // ========================
+  if (run && run.npcs) {
+    var importantNpcs = run.npcs.filter(function(n) { return n.isImportant; });
+    if (importantNpcs.length > 0) {
+      lines.push('[重要角色系统]');
+      lines.push('以下角色已被标记为重要。他们的好感度、记忆和关系会跨副本持续存在：');
+      importantNpcs.forEach(function(n) {
+        var affLabel = n.affection >= 60 ? '深厚' : (n.affection >= 30 ? '友好' : (n.affection >= 0 ? '中立' : (n.affection >= -30 ? '冷淡' : '敌视')));
+        lines.push('· ' + n.name + '（' + n.type + '）好感度：' + (n.affection||0) + ' [' + affLabel + '] 增幅速度：' + (n.affectionRate||'normal'));
+        if (n.longTermMemories && n.longTermMemories.length > 0) {
+          var recentMems = n.longTermMemories.slice(-3);
+          recentMems.forEach(function(m) {
+            var tag = m.emotionTag === 'positive' ? '[+]' : (m.emotionTag === 'negative' ? '[-]' : '[·]');
+            lines.push('  ' + tag + ' ' + (m.event||''));
+          });
+        }
+      });
+      lines.push('');
+      lines.push('[主动消息规则]');
+      lines.push('重要角色可能通过[MSG]标记主动联系玩家：');
+      lines.push('· 副本开始前可发送情报或提醒');
+      lines.push('· 副本中途可发送关心或线索');
+      lines.push('· 副本结束后可发送祝贺或安慰');
+      lines.push('好感度越高，主动消息频率越高。好感度≥50时偶尔主动联系。');
+      lines.push('');
+    }
+  }
 
   // ========================
   // TASK & PROGRESS
@@ -2000,6 +2136,40 @@ var App = {
     }
 
     Store.player().points += reward;
+
+    // Extract memories for important NPCs before archiving the run
+    if (run.npcs) {
+      var memMsgs = [];
+      run.npcs.forEach(function(n) {
+        if (n.isImportant) {
+          Store._extractMemories(n, result);
+          Store._compressMemories(n);
+          if (n.longTermMemories && n.longTermMemories.length > 0) {
+            memMsgs.push(n.name + '(' + n.longTermMemories.length + '条记忆)');
+          }
+        } else {
+          // Regular NPC: reset affection
+          n.affection = 0;
+        }
+      });
+      // Persist important NPCs to cross-run storage
+      Store._persistImportantNPCs(run);
+      if (memMsgs.length > 0) {
+        Store.addMessage({ type:'system', content:'【记忆归档】重要角色记忆已保存：' + memMsgs.join('、') });
+      }
+      if (isSuccess && run.npcs.some(function(n) { return n.isImportant && n.affection >= 50; })) {
+        // Trigger congratulations from important NPCs with high affection
+        var self = this;
+        setTimeout(function() {
+          run.npcs.forEach(function(n) {
+            if (n.isImportant && n.affection >= 50) {
+              App._receiveTravelerMsg(n.name, '恭喜通关《' + (run.title||'副本') + '》！在主神空间等你。');
+            }
+          });
+        }, 1000);
+      }
+    }
+
     Store.endRun(result, isSuccess);
     Store.addMessage({ type:'system', content:'【副本结束】结果：' + result + '。' + (reason||'') + (reward > 0 ? ' 积分 +' + reward : '') });
     this._updateRunBar();
