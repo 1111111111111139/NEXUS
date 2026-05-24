@@ -270,30 +270,33 @@ ul,ol{list-style:none}a{color:inherit;text-decoration:none}
 /* Shop items */
 .shop-item{
   display:flex;align-items:center;justify-content:space-between;
-  padding:12px 14px;border-bottom:0.5px solid var(--divider);
-  transition:background .15s;
+  padding:14px;margin-bottom:6px;
+  background:var(--surface);border:0.5px solid var(--divider);
+  border-radius:var(--radius);transition:border-color .15s;
 }
-.shop-item:active{background:var(--surface-hover, rgba(255,255,255,0.02))}
-.shop-item-name{font-size:13px;color:var(--text)}
-.shop-item-desc{font-size:10px;color:var(--text-2);margin-top:2px}
+.shop-item:hover{border-color:var(--divider-strong)}
+.shop-item-name{font-size:13px;color:var(--text);letter-spacing:.01em}
+.shop-item-desc{font-size:10px;color:var(--text-2);margin-top:3px;line-height:1.4}
 .shop-item-price{font-family:var(--font-mono);font-size:11px;color:var(--accent);white-space:nowrap}
 .shop-item-btn{
-  padding:5px 12px;border-radius:14px;font-size:10px;
+  padding:6px 14px;border-radius:14px;font-size:10px;
   background:var(--accent-dim);color:var(--accent);
   border:0.5px solid rgba(0,168,168,0.2);cursor:pointer;
-  transition:all .15s;white-space:nowrap;
+  transition:all .15s;white-space:nowrap;font-family:var(--font-mono);letter-spacing:.04em;
 }
-.shop-item-btn:active{background:var(--accent);color:var(--bg)}
+.shop-item-btn:active:not(:disabled){background:var(--accent);color:var(--bg)}
+.shop-item-btn:disabled{opacity:0.3;cursor:default}
 
 /* Traveler list */
 .traveler-card{
-  display:flex;align-items:center;gap:10px;
-  padding:10px 14px;border-bottom:0.5px solid var(--divider);
-  cursor:pointer;transition:background .15s;
+  display:flex;align-items:center;gap:12px;
+  padding:12px 14px;margin-bottom:6px;
+  background:var(--surface);border:0.5px solid var(--divider);
+  border-radius:var(--radius);cursor:pointer;transition:border-color .15s;
 }
-.traveler-card:active{background:var(--surface-hover, rgba(255,255,255,0.02))}
-.traveler-card-name{font-size:13px;color:var(--text)}
-.traveler-card-meta{font-size:10px;color:var(--text-2);margin-top:2px}
+.traveler-card:hover{border-color:var(--divider-strong)}
+.traveler-card-name{font-size:13px;color:var(--text);letter-spacing:.01em}
+.traveler-card-meta{font-size:10px;color:var(--text-2);margin-top:3px;line-height:1.4}
 .traveler-card-status{font-family:var(--font-mono);font-size:9px;color:var(--accent)}
 .traveler-card-status.offline{color:var(--text-3)}
 
@@ -531,12 +534,13 @@ body.light .msg-action-line{color:#888}
    DEFAULT DATA
    ============================================================ */
 var DEFAULT_SHOP = [
-  { id:'intel', name:'副本情报', desc:'提前获知目标副本的关键剧情节点', price:200, consumable:true },
-  { id:'identity', name:'身份设定包', desc:'进副本前自定义身份背景', price:300, consumable:true },
-  { id:'revive', name:'复活券', desc:'副本中死亡后复活一次（SAN归零）', price:500, consumable:true },
+  { id:'intel', name:'副本情报', desc:'提前获知目标副本的关键剧情节点和陷阱', price:200, consumable:true },
+  { id:'identity', name:'身份设定包', desc:'进副本前自定义身份背景和初始关系', price:300, consumable:true },
+  { id:'revive', name:'复活券', desc:'副本中死亡后复活一次，消耗品', price:500, consumable:true },
   { id:'escape', name:'撤离券', desc:'紧急撤离当前副本（积分惩罚-50%）', price:150, consumable:true },
   { id:'aff_boost', name:'好感度加成', desc:'指定角色初始好感度+20', price:100, consumable:true },
-  { id:'gear', name:'基础装备包', desc:'跨副本通用装备一套', price:400, consumable:false }
+  { id:'hire', name:'雇佣穿越者', desc:'解锁一位随机穿越者伙伴加入通讯录', price:600, consumable:false },
+  { id:'gear', name:'基础装备包', desc:'跨副本通用基础装备一套', price:400, consumable:false }
 ];
 
 var DEFAULT_TRAVELERS = [
@@ -1777,25 +1781,26 @@ var App = {
 
   renderShop: function() {
     var p = Store.player();
+    var pts = p.points || 0;
     var panel = document.getElementById('space-panel-shop');
     panel.innerHTML = DEFAULT_SHOP.map(function(item) {
       var purchased = Store.hasPurchased(item.id);
-      // Consumable: always re-buyable. Non-consumable: one-time purchase.
       var canBuy = item.consumable || !purchased;
       var owned = !item.consumable && purchased;
       var ownedCount = item.consumable ? (Store.player().inventory || []).filter(function(inv) { return inv.shopItem === item.id; }).length : 0;
+      var afford = pts >= item.price;
+      var btnDisabled = !afford || (!canBuy);
+      var btnLabel = owned ? '已拥有' : (!afford ? '积分不足' : (purchased ? '再次购买' : '购买'));
+      var btnStyle = owned ? 'opacity:0.4;cursor:default' : (!afford ? 'opacity:0.35;cursor:default' : '');
       return '<div class="shop-item">' +
-        '<div>' +
-          '<div class="shop-item-name">' + App.escapeHtml(item.name) + '</div>' +
-          '<div class="shop-item-desc">' + App.escapeHtml(item.desc) + (ownedCount > 0 ? ' (持有' + ownedCount + ')' : '') + '</div>' +
+        '<div style="flex:1;min-width:0;padding-right:10px">' +
+          '<div class="shop-item-name">' + App.escapeHtml(item.name) + (ownedCount > 0 ? ' <span style="font-size:9px;color:var(--accent);font-family:var(--font-mono)">×' + ownedCount + '</span>' : '') + '</div>' +
+          '<div class="shop-item-desc">' + App.escapeHtml(item.desc) + '</div>' +
         '</div>' +
-        (canBuy
-          ? '<div style="display:flex;align-items:center;gap:8px">' +
-              '<span class="shop-item-price">' + item.price + ' PTS</span>' +
-              '<button class="shop-item-btn" onclick="App._buyItem(\'' + item.id + '\')">' + (purchased ? '再次购买' : '购买') + '</button>' +
-            '</div>'
-          : '<span style="font-size:10px;color:var(--text-3)">已拥有</span>'
-        ) +
+        '<div style="display:flex;align-items:center;gap:6px;flex-shrink:0">' +
+          '<span class="shop-item-price" style="color:' + (afford ? 'var(--accent)' : 'var(--text-3)') + '">' + item.price + ' PTS</span>' +
+          '<button class="shop-item-btn" onclick="App._buyItem(\'' + item.id + '\')"' + (btnDisabled ? ' disabled style="opacity:0.3;cursor:default"' : '') + '>' + btnLabel + '</button>' +
+        '</div>' +
       '</div>';
     }).join('');
   },
@@ -1821,18 +1826,32 @@ var App = {
   renderTravelerList: function() {
     var panel = document.getElementById('space-panel-travelers');
     var travelers = Store.travelers();
+    if (travelers.length === 0) {
+      panel.innerHTML = '<div style="text-align:center;color:var(--text-3);padding:40px 0;font-size:12px;line-height:1.8">暂无已解锁穿越者<br><span style="font-size:10px">在积分商店雇佣穿越者，或在副本中结识新的穿越者伙伴</span></div>';
+      return;
+    }
     panel.innerHTML = travelers.map(function(t) {
       var chat = Store.getOrCreateChat(t.id);
-      var unreadDot = chat.hasUnread ? '<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--accent);margin-left:4px;flex-shrink:0;animation:corePulse 2s infinite"></span>' : '';
-      return '<div class="traveler-card" onclick="App._openTravelerChat(\'' + t.id + '\')">' +
-        '<div class="msg-avatar" style="width:40px;height:40px;background:#12121C;position:relative">' +
-          '<span class="msg-avatar-text">' + App.escapeHtml(t.name.charAt(0)) + '</span>' +
+      var msgCount = chat.messages ? chat.messages.length : 0;
+      var unreadDot = chat.hasUnread ? '<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--accent);flex-shrink:0;box-shadow:0 0 6px var(--accent-dim);animation:corePulse 2s infinite"></span>' : '';
+      var affLabel = (t.affection || 0) >= 40 ? ' · 友好' : ((t.affection || 0) <= -20 ? ' · 冷淡' : '');
+      return '<div class="traveler-card" onclick="App._openTravelerChat(\'' + t.id + '\')" style="position:relative">' +
+        '<div class="msg-avatar" style="width:44px;height:44px;background:#12121C;position:relative;flex-shrink:0">' +
+          '<span class="msg-avatar-text" style="font-size:16px">' + App.escapeHtml(t.name.charAt(0)) + '</span>' +
+          (t.online ? '<span style="position:absolute;bottom:0;right:0;width:10px;height:10px;border-radius:50%;background:var(--accent);border:2px solid var(--bg);box-shadow:0 0 6px var(--accent-dim)"></span>' : '<span style="position:absolute;bottom:0;right:0;width:10px;height:10px;border-radius:50%;background:var(--text-3);border:2px solid var(--bg)"></span>') +
         '</div>' +
         '<div style="flex:1;min-width:0">' +
-          '<div class="traveler-card-name">' + App.escapeHtml(t.name) + unreadDot + ' <span style="font-size:9px;color:var(--text-3)">Lv.' + (t.level||1) + '</span></div>' +
-          '<div class="traveler-card-meta">' + App.escapeHtml(t.background || '') + '</div>' +
+          '<div class="traveler-card-name" style="display:flex;align-items:center;gap:4px">' +
+            App.escapeHtml(t.name) +
+            '<span style="font-size:9px;color:var(--text-3);font-family:var(--font-mono)">Lv.' + (t.level||1) + '</span>' +
+            unreadDot +
+          '</div>' +
+          '<div class="traveler-card-meta">' + App.escapeHtml(t.personality || t.background || '') + (affLabel ? '<span style="color:var(--accent)">' + affLabel + '</span>' : '') + '</div>' +
         '</div>' +
-        '<div class="traveler-card-status' + (t.online ? '' : ' offline') + '">' + (t.online ? '在线' : '离线') + '</div>' +
+        '<div style="flex-shrink:0;text-align:right">' +
+          '<div style="font-size:12px;color:' + (t.online ? 'var(--accent)' : 'var(--text-3)') + ';font-family:var(--font-mono)">' + (t.online ? '在线' : '离线') + '</div>' +
+          (msgCount > 0 ? '<div style="font-size:9px;color:var(--text-3);margin-top:1px">' + msgCount + '条消息</div>' : '') +
+        '</div>' +
       '</div>';
     }).join('');
   },
@@ -1841,19 +1860,32 @@ var App = {
     var panel = document.getElementById('space-panel-records');
     var history = Store._db.runHistory || [];
     if (history.length === 0) {
-      panel.innerHTML = '<div style="text-align:center;color:var(--text-3);padding:30px 0;font-size:12px">暂无副本记录</div>';
+      panel.innerHTML = '<div style="text-align:center;color:var(--text-3);padding:40px 0;font-size:12px;line-height:1.8">尚无副本记录<br><span style="font-size:10px">完成副本后，记录将显示在这里</span></div>';
       return;
     }
-    panel.innerHTML = history.slice().reverse().map(function(r) {
-      var resultCls = r.result === '成功' ? 'win' : 'loss';
-      return '<div class="run-record">' +
-        '<div>' +
-          '<div class="run-record-title">《' + App.escapeHtml(r.title || '未知') + '》</div>' +
-          '<div class="run-record-meta">' + App.escapeHtml(r.type || '') + ' · ' + App.escapeHtml(r.difficulty || '') + '</div>' +
-        '</div>' +
-        '<div class="run-record-result ' + resultCls + '">' + App.escapeHtml(r.result || '') + '</div>' +
-      '</div>';
-    }).join('');
+    panel.innerHTML = '<div style="font-size:10px;color:var(--text-3);font-family:var(--font-mono);letter-spacing:.06em;margin-bottom:10px">共 ' + history.length + ' 条记录</div>' +
+      history.slice().reverse().map(function(r) {
+        var isWin = r.result === '成功';
+        var reward = r.baseReward || 0;
+        if (isWin && r.difficulty) {
+          var diffMult = { '简单':0.5, '普通':1, '困难':1.5, '极难':2 };
+          reward = Math.floor(reward * (diffMult[r.difficulty] || 1));
+        }
+        if (!isWin) reward = 0;
+        return '<div class="run-record" style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-bottom:0.5px solid var(--divider);background:var(--surface);border-radius:var(--radius);margin-bottom:6px">' +
+          '<div style="flex:1;min-width:0">' +
+            '<div class="run-record-title" style="font-size:13px;color:var(--text)">《' + App.escapeHtml(r.title || '未知') + '》</div>' +
+            '<div class="run-record-meta" style="font-size:10px;color:var(--text-3);margin-top:3px">' +
+              App.escapeHtml(r.type || '') + ' · ' + App.escapeHtml(r.difficulty || '') +
+              (r.endedAt ? ' · ' + new Date(r.endedAt).toLocaleDateString('zh-CN') : '') +
+            '</div>' +
+          '</div>' +
+          '<div style="text-align:right;flex-shrink:0;margin-left:12px">' +
+            '<div style="font-size:12px;color:' + (isWin ? 'var(--accent)' : '#8E2A2A') + ';font-family:var(--font-mono);letter-spacing:.02em">' + (isWin ? '成功' : '失败') + '</div>' +
+            (isWin ? '<div style="font-size:9px;color:var(--accent);font-family:var(--font-mono);margin-top:1px">+' + reward + ' PTS</div>' : '<div style="font-size:9px;color:var(--text-3);margin-top:1px">+0 PTS</div>') +
+          '</div>' +
+        '</div>';
+      }).join('');
   },
 
   /* ============================================================
