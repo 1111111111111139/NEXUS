@@ -446,6 +446,45 @@ body.light .theme-toggle::after{left:23px}
 .toast{font-family:var(--font-mono);font-size:9px;color:var(--text-2);text-align:center;padding:8px 0;opacity:0;transition:opacity .3s}
 .toast.show{opacity:1}
 
+/* ---- Settlement Overlay ---- */
+.settlement-overlay{
+  position:fixed;inset:0;z-index:400;
+  background:rgba(0,0,0,0.75);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  display:none;align-items:flex-end;justify-content:center;
+}
+.settlement-overlay.open{display:flex}
+.settlement-sheet{
+  width:100%;max-width:430px;max-height:85dvh;overflow-y:auto;
+  background:var(--surface);border:0.5px solid var(--border);border-bottom:none;
+  border-radius:20px 20px 0 0;padding:24px 20px calc(20px + var(--sab));
+  animation:settleUp .45s cubic-bezier(.2,.9,.3,1);
+}
+@keyframes settleUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.settlement-sheet .settle-icon{
+  width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:24px;margin:0 auto 12px;
+}
+.settlement-sheet .settle-icon.win{background:var(--accent-dim);color:var(--accent);box-shadow:0 0 20px var(--accent-dim)}
+.settlement-sheet .settle-icon.loss{background:rgba(142,42,42,0.2);color:#E05A5A;box-shadow:0 0 20px rgba(142,42,42,.25)}
+.settlement-sheet .settle-title{text-align:center;font-family:var(--font-serif);font-size:20px;color:var(--text);letter-spacing:.04em;margin-bottom:4px}
+.settlement-sheet .settle-subtitle{text-align:center;font-size:10px;color:var(--text-3);font-family:var(--font-mono);letter-spacing:.06em;margin-bottom:16px}
+.settlement-sheet .settle-stat-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:0.5px solid var(--divider);font-size:12px}
+.settlement-sheet .settle-stat-label{color:var(--text-2)}
+.settlement-sheet .settle-stat-val{color:var(--text);font-family:var(--font-mono)}
+.settlement-sheet .settle-stat-val.accent{color:var(--accent)}
+.settlement-sheet .settle-stat-val.danger{color:#E05A5A}
+.settlement-sheet .settle-task-list{margin-top:8px}
+.settlement-sheet .settle-task-row{display:flex;align-items:center;gap:8px;padding:6px 0;font-size:11px}
+.settlement-sheet .settle-task-row .st-icon{flex-shrink:0;font-size:12px}
+.settlement-sheet .settle-task-row .st-icon.done{color:var(--accent)}
+.settlement-sheet .settle-task-row .st-icon.undone{color:var(--text-3)}
+.settlement-sheet .settle-actions{display:flex;gap:10px;margin-top:20px}
+.settlement-sheet .settle-btn{flex:1;padding:11px 0;border-radius:var(--radius);font-size:12px;text-align:center;cursor:pointer;transition:all .15s;font-family:var(--font-ui);letter-spacing:.02em}
+.settlement-sheet .settle-btn.primary{background:var(--accent-dim);color:var(--accent);border:0.5px solid rgba(0,168,168,.2)}
+.settlement-sheet .settle-btn.primary:active{background:var(--accent);color:var(--bg)}
+.settlement-sheet .settle-btn.secondary{background:transparent;color:var(--text-2);border:0.5px solid var(--border)}
+.settlement-sheet .settle-btn.secondary:active{color:var(--text);border-color:var(--text-3)}
+
 /* ============================================================
    LIGHT THEME
    ============================================================ */
@@ -561,6 +600,11 @@ body.light .msg-action-line{color:#888}
 <div class="telemetry-toast" id="telemetry-toast">
   <div class="tt-icon pts" id="ttIcon">✦</div>
   <span id="ttText"></span>
+</div>
+
+<!-- Settlement Overlay -->
+<div class="settlement-overlay" id="settlement-overlay">
+  <div class="settlement-sheet" id="settlement-sheet"></div>
 </div>
 
 <!-- ============================================================
@@ -1656,6 +1700,8 @@ var App = {
 
     // Center modal: click overlay to close
     document.getElementById('center-modal').addEventListener('click', function(e) { if (e.target === this) { this.classList.remove('open'); } });
+    // Settlement overlay: click backdrop to dismiss
+    document.getElementById('settlement-overlay').addEventListener('click', function(e) { if (e.target === this) { App._closeSettlement('space'); } });
   },
 
   /* ============================================================
@@ -2565,12 +2611,103 @@ var App = {
       }
     }
 
+    // Build settlement data before archiving
+    var settlement = {
+      title: run.title || '未知',
+      type: run.type || '',
+      difficulty: run.difficulty || '',
+      result: result,
+      reason: reason,
+      reward: reward,
+      isSuccess: isSuccess,
+      mainTask: run.mainTask,
+      sideTasks: run.sideTasks || [],
+      completedTasks: run.completedTasks || [],
+      taskLog: run.taskLog || {},
+      startedAt: run.startedAt,
+      npcs: run.npcs || []
+    };
+
     Store.endRun(result, isSuccess);
     Store.addMessage({ type:'system', content:'【副本结束】结果：' + result + '。' + (reason||'') + (reward > 0 ? ' 积分 +' + reward : '') });
     this._updateRunBar();
     this.renderSpace();
     this.renderStatus();
     Store.save();
+
+    // Show settlement overlay
+    this._showSettlement(settlement);
+  },
+
+  /** Show settlement overlay after a run ends */
+  _showSettlement: function(data) {
+    var self = this;
+    var sheet = document.getElementById('settlement-sheet');
+    var overlay = document.getElementById('settlement-overlay');
+    if (!sheet || !overlay) return;
+
+    var isWin = data.isSuccess;
+    var completedSet = {};
+    (data.completedTasks || []).forEach(function(t) { completedSet[t] = true; });
+
+    var html = '';
+
+    // Icon + title
+    html += '<div class="settle-icon ' + (isWin ? 'win' : 'loss') + '">' + (isWin ? '✓' : '✗') + '</div>';
+    html += '<div class="settle-title">' + (isWin ? '副本通关' : '副本失败') + '</div>';
+    html += '<div class="settle-subtitle">' + App.escapeHtml(data.result) + (data.reason ? ' · ' + App.escapeHtml(data.reason) : '') + '</div>';
+
+    // Stats
+    html += '<div style="margin:8px 0">';
+    html += '<div class="settle-stat-row"><span class="settle-stat-label">书名</span><span class="settle-stat-val">《' + App.escapeHtml(data.title) + '》</span></div>';
+    html += '<div class="settle-stat-row"><span class="settle-stat-label">类型</span><span class="settle-stat-val">' + App.escapeHtml(data.type) + ' · ' + App.escapeHtml(data.difficulty) + '</span></div>';
+    var duration = data.startedAt ? Math.ceil((Date.now() - data.startedAt) / 60000) : 0;
+    var durStr = duration > 1440 ? Math.floor(duration/1440) + '天' : (duration > 60 ? Math.floor(duration/60) + '小时' + (duration%60) + '分钟' : duration + '分钟');
+    html += '<div class="settle-stat-row"><span class="settle-stat-label">用时</span><span class="settle-stat-val">' + durStr + '</span></div>';
+    html += '<div class="settle-stat-row"><span class="settle-stat-label">积分</span><span class="settle-stat-val ' + (isWin ? 'accent' : 'danger') + '">' + (isWin ? '+' : '') + (data.reward || 0) + ' PTS</span></div>';
+    html += '</div>';
+
+    // Tasks
+    html += '<div style="margin-top:12px"><div style="font-size:10px;color:var(--text-3);font-family:var(--font-mono);letter-spacing:.06em;margin-bottom:6px">任务完成情况</div>';
+    if (data.mainTask) {
+      var mtDone = completedSet[data.mainTask.name];
+      html += '<div class="settle-task-row"><span class="st-icon ' + (mtDone ? 'done' : 'undone') + '">' + (mtDone ? '✓' : '◇') + '</span><span style="color:' + (mtDone ? 'var(--accent)' : 'var(--text-2)') + '">◆ ' + App.escapeHtml(data.mainTask.name) + '</span></div>';
+    }
+    (data.sideTasks || []).forEach(function(t) {
+      var sDone = completedSet[t.name];
+      html += '<div class="settle-task-row"><span class="st-icon ' + (sDone ? 'done' : 'undone') + '">' + (sDone ? '✓' : '◇') + '</span><span style="color:' + (sDone ? 'var(--accent)' : 'var(--text-2)') + '">◇ ' + App.escapeHtml(t.name) + '</span></div>';
+    });
+    html += '</div>';
+
+    // Important NPC summary
+    var impNpcs = (data.npcs || []).filter(function(n) { return n.isImportant; });
+    if (impNpcs.length > 0) {
+      html += '<div style="margin-top:12px"><div style="font-size:10px;color:var(--text-3);font-family:var(--font-mono);letter-spacing:.06em;margin-bottom:4px">重要角色</div>';
+      impNpcs.forEach(function(n) {
+        html += '<div style="font-size:10px;color:var(--text-2);padding:2px 0">' + App.escapeHtml(n.name) + ' · 好感度 ' + (n.affection >= 0 ? '+' : '') + (n.affection || 0) + '</div>';
+      });
+      html += '</div>';
+    }
+
+    // Actions
+    html += '<div class="settle-actions">' +
+      '<button class="settle-btn primary" onclick="App._closeSettlement(\'space\')">返回主神空间</button>' +
+      '<button class="settle-btn secondary" onclick="App._closeSettlement(\'records\')">查看副本记录</button>' +
+    '</div>';
+
+    sheet.innerHTML = html;
+    overlay.classList.add('open');
+
+    // Auto-scroll sheet to top
+    setTimeout(function() { sheet.scrollTop = 0; }, 100);
+  },
+
+  /** Close settlement overlay and navigate */
+  _closeSettlement: function(target) {
+    var overlay = document.getElementById('settlement-overlay');
+    if (overlay) overlay.classList.remove('open');
+    if (target === 'space') { this.navigateTo('space'); }
+    else if (target === 'records') { this.navigateTo('space'); setTimeout(function() { App.renderRunRecords(); }, 200); }
   },
 
   _updateRunBar: function() {
