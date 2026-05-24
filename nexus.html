@@ -1379,13 +1379,16 @@ var App = {
     Store.init();
     this.applyTheme();
     this.bindEvents();
-    this.renderAll();
 
-    // If no player name set, show character creation
+    // Show char creation BEFORE renderAll — prevents any render error from blocking it
     var p = Store.player();
-    if (!p.name) {
-      this._showCharCreation();
+    var needCharCreation = !p.name;
+
+    if (needCharCreation) {
+      try { this._showCharCreation(); } catch(e) { console.error('Char creation error:', e); }
     }
+
+    try { this.renderAll(); } catch(e) { console.error('Render error:', e); }
   },
 
   applyTheme: function() {
