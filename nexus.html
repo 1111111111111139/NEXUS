@@ -2209,49 +2209,166 @@ var App = {
   },
 
   _showCharCreation: function() {
-    var html = '<div style="text-align:center;padding:20px 0">' +
-      '<div style="font-family:var(--font-mono);font-size:11px;color:var(--accent);letter-spacing:.12em;margin-bottom:16px">NEXUS · 穿越者创建</div>' +
-      '<div class="settings-row"><label>姓名</label><input type="text" id="cc-name" placeholder="穿越者代号" style="width:200px"></div>' +
-      '<div class="settings-row"><label>外貌</label><input type="text" id="cc-appearance" placeholder="外貌描述" style="width:200px"></div>' +
-      '<div class="settings-row"><label>背景</label><input type="text" id="cc-background" placeholder="穿越前的背景" style="width:200px"></div>' +
-      '<div class="settings-row"><label>性格</label><input type="text" id="cc-personality" placeholder="性格特征" style="width:200px"></div>' +
-      '<button class="btn-accent" style="width:100%;margin-top:12px" onclick="App._saveCharCreation()">确认创建</button>' +
-      '<div style="font-size:10px;color:var(--text-3);margin-top:10px">或<a style="color:var(--accent);cursor:pointer" onclick="App._randomChar()"> 随机生成 </a></div>' +
-    '</div>';
+    var html =
+      '<div style="text-align:center;padding:8px 0 20px">' +
+        '<div style="font-family:var(--font-mono);font-size:10px;color:var(--accent);letter-spacing:.14em;margin-bottom:6px">主神空间</div>' +
+        '<div style="font-size:20px;color:var(--text);letter-spacing:.04em;font-family:var(--font-serif);margin-bottom:4px">穿越者创建</div>' +
+        '<div style="font-size:10px;color:var(--text-3);margin-bottom:20px">塑造你在无尽书海中的化身</div>' +
+      '</div>' +
+
+      // Name
+      '<div style="margin-bottom:14px">' +
+        '<label style="display:block;font-size:10px;color:var(--text-3);letter-spacing:.08em;margin-bottom:6px;font-family:var(--font-mono)">姓名</label>' +
+        '<input type="text" id="cc-name" style="width:100%;background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius);padding:10px 14px;font-size:14px;color:var(--text);font-family:var(--font-ui)" placeholder="穿越者代号" autofocus>' +
+      '</div>' +
+
+      // Appearance
+      '<div style="margin-bottom:14px">' +
+        '<label style="display:block;font-size:10px;color:var(--text-3);letter-spacing:.08em;margin-bottom:6px;font-family:var(--font-mono)">外貌（可选）</label>' +
+        '<textarea id="cc-appearance" style="width:100%;background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius);padding:10px 14px;font-size:13px;color:var(--text);font-family:var(--font-ui);resize:none;line-height:1.5" rows="2" placeholder="外貌特征的简短描述"></textarea>' +
+      '</div>' +
+
+      // Personality — radio group
+      '<div style="margin-bottom:14px">' +
+        '<label style="display:block;font-size:10px;color:var(--text-3);letter-spacing:.08em;margin-bottom:8px;font-family:var(--font-mono)">性格</label>' +
+        '<div id="cc-personality-group" style="display:flex;flex-wrap:wrap;gap:8px">' +
+          ['活泼','冷静','温柔','毒舌','神秘'].map(function(trait, i) {
+            return '<label style="flex:1;min-width:60px;text-align:center;padding:8px 0;border-radius:var(--radius);font-size:12px;cursor:pointer;border:0.5px solid var(--border);color:var(--text-2);background:var(--surface);transition:all .2s;font-family:var(--font-ui)" class="cc-trait-btn" data-trait="' + trait + '">' + trait + '</label>';
+          }).join('') +
+        '</div>' +
+        '<input type="hidden" id="cc-personality" value="">' +
+      '</div>' +
+
+      // Background
+      '<div style="margin-bottom:20px">' +
+        '<label style="display:block;font-size:10px;color:var(--text-3);letter-spacing:.08em;margin-bottom:6px;font-family:var(--font-mono)">穿越前背景（可选）</label>' +
+        '<textarea id="cc-background" style="width:100%;background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius);padding:10px 14px;font-size:13px;color:var(--text);font-family:var(--font-ui);resize:none;line-height:1.5" rows="2" placeholder="你在被主神召唤前是什么人"></textarea>' +
+      '</div>' +
+
+      // Buttons
+      '<div style="display:flex;gap:10px">' +
+        '<button class="btn-accent" style="flex:2;padding:11px 0;font-size:13px;border-radius:var(--radius)" onclick="App._saveCharCreation()">确认创建</button>' +
+        '<button style="flex:1;padding:11px 0;font-size:11px;border-radius:var(--radius);border:0.5px solid var(--border);color:var(--text-2);background:transparent;cursor:pointer;font-family:var(--font-mono);letter-spacing:.04em;transition:all .2s" onclick="App._aiRandomChar()" id="cc-ai-btn">AI随机</button>' +
+      '</div>' +
+      '<div style="text-align:center;font-size:10px;color:var(--text-3);margin-top:10px">或 <a style="color:var(--accent);cursor:pointer;text-decoration:underline;text-underline-offset:3px" onclick="App._randomChar()">本地随机生成</a></div>';
+
     document.getElementById('center-modal-box').innerHTML = html;
     document.getElementById('center-modal').classList.add('open');
+
+    // Bind personality trait buttons
+    var self = this;
+    setTimeout(function() {
+      var btns = document.querySelectorAll('.cc-trait-btn');
+      btns.forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          btns.forEach(function(b) { b.style.borderColor = 'var(--border)'; b.style.color = 'var(--text-2)'; b.style.background = 'var(--surface)'; });
+          this.style.borderColor = 'var(--accent)';
+          this.style.color = 'var(--accent)';
+          this.style.background = 'var(--accent-dim)';
+          document.getElementById('cc-personality').value = this.dataset.trait;
+        });
+      });
+    }, 50);
   },
 
   _saveCharCreation: function() {
     var p = Store.player();
-    p.name = document.getElementById('cc-name').value.trim() || '轮回者' + Math.floor(Math.random() * 9000);
+    var name = document.getElementById('cc-name').value.trim();
+    if (!name) { this._showToast('请输入角色名'); return; }
+    p.name = name;
     p.appearance = document.getElementById('cc-appearance').value.trim();
+    p.personality = document.getElementById('cc-personality').value || document.getElementById('cc-personality').value || '';
     p.background = document.getElementById('cc-background').value.trim();
-    p.personality = document.getElementById('cc-personality').value.trim();
     p.points = 100;
     Store.save();
     document.getElementById('center-modal').classList.remove('open');
+    Store.addMessage({ type:'system', content:'穿越者「' + p.name + '」已登录NEXUS主神空间。' });
+    Store.addMessage({ type:'narrative', content:'你站在一片纯白的空间中。脚下没有地面，头顶没有天空——只有无限延伸的白，和远处悬浮着的一扇扇门。每扇门后面是一个世界。一本书。一个等待你进入的故事。\n\n主神空间的终端在你眼前展开。积分商店。穿越者通讯录。副本记录。一切准备就绪。\n\n（你可以先去积分商店看看，或者直接从副本记录中进入你的第一个世界）' });
     this.renderAll();
     this.renderStatus();
     this._showToast('穿越者 ' + p.name + ' 已登录NEXUS');
   },
 
   _randomChar: function() {
-    var names = ['苏晚', '林默', '陈曦', '叶落', '温九', '顾尘', '白露', '沈雁'];
-    var appearances = ['黑色短发，眼神锐利', '长发及腰，面容清冷', '普通相貌，但目光深邃', '戴着眼镜，书卷气十足'];
-    var backgrounds = ['前·公司社畜', '退役特种兵', '自由职业插画师', '网络小说作家', '医院急诊科医生'];
-    var personalities = ['冷静理性，偶尔幽默', '表面冷漠内心柔软', '热情冲动，爱管闲事', '沉默寡言，善于观察'];
+    var names = ['苏晚','林默','陈曦','叶落','温九','顾尘','白露','沈雁','楚安','凌霜'];
+    var appearances = [
+      '黑色短发，眼神锐利，左眉尾有一道浅疤',
+      '长发及腰，面容清冷，不常笑但笑起来很好看',
+      '普通相貌，但目光深邃，让人忍不住多看两眼',
+      '戴着细框眼镜，书卷气十足，手指上有旧墨渍',
+      '利落马尾，小麦色皮肤，一看就常在外面跑',
+      '微卷中长发，总是漫不经心的表情，嘴角习惯性微翘'
+    ];
+    var backgrounds = [
+      '前公司社畜，在某次深夜加班时被主神召唤',
+      '退役特种兵，战斗经验丰富但不爱提过去',
+      '自由职业插画师，对色彩和细节异常敏感',
+      '网络小说作家，对穿书设定有种微妙的既视感',
+      '医院急诊科医生，习惯了高压和混乱',
+      '大学生，专业是没什么用的古典文学',
+      '前餐厅主厨，刀工极好，性格比刀还利'
+    ];
+    var traits = ['活泼','冷静','温柔','毒舌','神秘'];
+
     var p = Store.player();
     p.name = names[Math.floor(Math.random() * names.length)];
     p.appearance = appearances[Math.floor(Math.random() * appearances.length)];
     p.background = backgrounds[Math.floor(Math.random() * backgrounds.length)];
-    p.personality = personalities[Math.floor(Math.random() * personalities.length)];
+    p.personality = traits[Math.floor(Math.random() * traits.length)];
     p.points = 100;
     Store.save();
     document.getElementById('center-modal').classList.remove('open');
+    Store.addMessage({ type:'system', content:'穿越者「' + p.name + '」已登录NEXUS主神空间。' });
+    Store.addMessage({ type:'narrative', content:'你站在一片纯白的空间中。脚下没有地面，头顶没有天空——只有无限延伸的白，和远处悬浮着的一扇扇门。每扇门后面是一个世界。一本书。一个等待你进入的故事。\n\n主神空间的终端在你眼前展开。积分商店。穿越者通讯录。副本记录。一切准备就绪。\n\n（你可以先去积分商店看看，或者直接从副本记录中进入你的第一个世界）' });
     this.renderAll();
     this.renderStatus();
-    this._showToast('穿越者 ' + p.name + ' 已登录NEXUS');
+    this._showToast('穿越者 ' + p.name + ' 已登录NEXUS · 性格：' + p.personality);
+  },
+
+  _aiRandomChar: function() {
+    var self = this;
+    var btn = document.getElementById('cc-ai-btn');
+    if (!btn) return;
+    btn.textContent = '生成中...';
+    btn.disabled = true;
+
+    var prompt = '请随机生成一个穿越者角色。穿越者是被主神空间召唤进入不同小说世界执行任务的人。返回纯JSON格式：\n' +
+      '{"name":"中文名(2-3字)","gender":"女","appearance":"外貌描述(1-2句)","background":"穿越前的背景故事(1-2句)","personality":"活泼/冷静/温柔/毒舌/神秘(五选一)","personalityDesc":"性格特征的一句话描述"}\n只返回JSON。';
+
+    AI.call([{ role:'user', content:prompt }], { temperature:1.2, maxTokens:300 }).then(function(resp) {
+      btn.textContent = 'AI随机';
+      btn.disabled = false;
+      if (!resp || resp.error) { self._randomChar(); return; }
+      try {
+        var jsonStr = resp.text.trim();
+        var idx = jsonStr.indexOf('{');
+        if (idx > 0) jsonStr = jsonStr.slice(idx);
+        idx = jsonStr.lastIndexOf('}');
+        if (idx >= 0) jsonStr = jsonStr.slice(0, idx + 1);
+        var data = JSON.parse(jsonStr);
+
+        // Fill form fields
+        var nameEl = document.getElementById('cc-name');
+        var appEl = document.getElementById('cc-appearance');
+        var bgEl = document.getElementById('cc-background');
+        var persEl = document.getElementById('cc-personality');
+        if (nameEl) nameEl.value = data.name || '';
+        if (appEl) appEl.value = data.appearance || '';
+        if (bgEl) bgEl.value = data.background || '';
+        // Set personality radio
+        var trait = data.personality || '神秘';
+        if (persEl) persEl.value = trait;
+        var btns = document.querySelectorAll('.cc-trait-btn');
+        btns.forEach(function(b) {
+          if (b.dataset.trait === trait) {
+            b.style.borderColor = 'var(--accent)';
+            b.style.color = 'var(--accent)';
+            b.style.background = 'var(--accent-dim)';
+          }
+        });
+        self._showToast('AI生成了穿越者：' + (data.name || '?') + ' · ' + trait);
+      } catch(e) { self._randomChar(); }
+    });
   }
 };
 
