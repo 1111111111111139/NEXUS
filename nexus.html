@@ -30,6 +30,9 @@ ul,ol{list-style:none}a{color:inherit;text-decoration:none}
   --accent:#00A8A8;
   --accent-dim:rgba(0,168,168,0.18);
   --accent-glow:0 0 14px rgba(0,168,168,0.25);
+  --accent-deep:rgba(0,168,168,0.08);
+  --text-dim:#5A5E6A;
+  --text-faint:#2A2D36;
   --divider:rgba(255,255,255,0.06);
   --divider-strong:rgba(255,255,255,0.10);
   --glass:rgba(14,14,22,0.75);
@@ -126,6 +129,123 @@ ul,ol{list-style:none}a{color:inherit;text-decoration:none}
 .nexus-core.loading{background:transparent;border:1.5px solid var(--accent);animation:coreSpin 1.2s linear infinite}
 @keyframes corePulse{0%,100%{box-shadow:0 0 6px var(--accent-dim)}50%{box-shadow:0 0 16px var(--accent-dim)}}
 @keyframes coreSpin{to{transform:rotate(360deg)}}
+
+/* ============================================================
+   INTRO ANIMATION — NEXUS opening
+   ============================================================ */
+#intro-overlay{
+  position:fixed;inset:0;z-index:9999;
+  background:radial-gradient(ellipse at center,#0A1018 0%,#020408 100%);
+  display:flex;align-items:center;justify-content:center;flex-direction:column;
+  transition:opacity 1.6s cubic-bezier(.4,0,.2,1);
+}
+#intro-overlay.hidden{opacity:0;pointer-events:none}
+#intro-overlay::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,168,168,.015) 2px,rgba(0,168,168,.015) 4px);pointer-events:none}
+.term-text{font-family:var(--font-mono);font-size:13px;color:var(--text-dim);letter-spacing:.12em;position:absolute;opacity:0}
+.term-text.play{animation:term-glitch 1.1s forwards}
+.term-cursor{color:var(--accent);animation:cursor-blink .2s infinite}
+@keyframes term-glitch{0%{opacity:1;transform:translate(0,0);filter:blur(0)}60%{opacity:1;transform:translate(0,0);filter:blur(0)}68%{transform:translate(3px,-1px);filter:drop-shadow(1px 0 0 #00A8A8) drop-shadow(-1px 0 0 #D8DCE6)}72%{transform:translate(-2px,1px);filter:drop-shadow(-1px 0 0 #00A8A8) drop-shadow(1px 0 0 #D8DCE6)}76%{transform:translate(0,0)}82%{transform:scaleX(1.8) scaleY(.15);opacity:1}100%{transform:scaleX(0) scaleY(.01);opacity:0}}
+@keyframes cursor-blink{0%,100%{opacity:1}50%{opacity:0}}
+
+.title-box{display:flex;align-items:baseline;gap:16px;position:absolute;opacity:0}
+.title-box.play{animation:title-emerge 1.8s cubic-bezier(.22,.61,.36,1) forwards 1.1s}
+.title-main{font-family:var(--font-serif);font-size:46px;letter-spacing:.2em;color:var(--accent);position:relative;font-weight:400;text-shadow:0 0 40px rgba(0,168,168,.5),0 0 80px rgba(0,168,168,.2)}
+.title-sub{font-family:var(--font-mono);font-size:13px;letter-spacing:.35em;color:var(--text-dim);font-weight:300;opacity:.7}
+@keyframes title-emerge{0%{opacity:0;transform:scale(.92);filter:blur(6px)}60%{opacity:.8;filter:blur(0)}100%{opacity:1;transform:scale(1);filter:blur(0)}}
+.title-main::after{content:'';position:absolute;top:48%;left:-20%;right:-20%;height:1px;background:var(--accent);box-shadow:var(--accent-glow);opacity:0;transform:scaleX(0);transform-origin:left}
+.title-main.strike::after{animation:light-streak .5s ease-in forwards 1.5s}
+@keyframes light-streak{0%{opacity:1;transform:scaleX(0)}35%{opacity:1;transform:scaleX(1);top:48%}45%{opacity:.6;transform:scaleX(1);top:42%}55%{opacity:1;transform:scaleX(1);top:54%}70%{opacity:.3;top:50%}100%{opacity:0;transform:scaleX(1.2)}}
+
+.particle-row{position:absolute;bottom:20%;display:flex;gap:6px;opacity:0}
+.particle-row.play{animation:particles-rise 2s ease-out forwards 1.8s}
+.particle-dot{width:2px;height:2px;background:var(--accent);border-radius:50%;opacity:0}
+.particle-dot:nth-child(1){animation:dot-float 3s ease-in-out infinite 2s}
+.particle-dot:nth-child(2){animation:dot-float 3s ease-in-out infinite 2.3s}
+.particle-dot:nth-child(3){animation:dot-float 3s ease-in-out infinite 2.6s}
+.particle-dot:nth-child(4){animation:dot-float 3s ease-in-out infinite 2.1s}
+.particle-dot:nth-child(5){animation:dot-float 3s ease-in-out infinite 2.5s}
+@keyframes particles-rise{0%{opacity:0;transform:translateY(10px)}100%{opacity:.5;transform:translateY(0)}}
+@keyframes dot-float{0%,100%{opacity:.2;transform:translateY(0)}50%{opacity:.7;transform:translateY(-8px)}}
+
+/* Worldview screen */
+#worldview-screen{
+  position:fixed;inset:0;z-index:9998;
+  background:radial-gradient(ellipse at center,#0A1018 0%,#020408 100%);
+  display:none;flex-direction:column;align-items:center;justify-content:center;
+  opacity:0;transition:opacity 1.5s ease;padding:0 28px;cursor:default;
+}
+#worldview-screen::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,168,168,.01) 2px,rgba(0,168,168,.01) 4px);pointer-events:none}
+#worldview-screen.active{display:flex;opacity:1}
+#worldview-screen.fade-out{opacity:0;pointer-events:none}
+#worldview-screen.clickable{cursor:pointer}
+.wv-mark{font-family:var(--font-mono);font-size:9px;color:var(--text-faint);letter-spacing:.25em;margin-bottom:32px;opacity:0;animation:fade-up 1.5s ease forwards .3s}
+.wv-title{font-family:var(--font-serif);font-size:28px;color:var(--accent);letter-spacing:.25em;margin-bottom:6px;opacity:0;animation:fade-up 1.5s ease forwards .6s;font-weight:400;text-shadow:0 0 30px rgba(0,168,168,.3)}
+.wv-subtitle{font-family:var(--font-mono);font-size:10px;color:var(--text-dim);letter-spacing:.2em;margin-bottom:48px;opacity:0;animation:fade-up 1.5s ease forwards 1.2s}
+.wv-lines{display:flex;flex-direction:column;gap:14px;text-align:center;max-width:300px}
+.wv-line{font-family:var(--font-serif);font-size:13px;color:var(--text-dim);letter-spacing:.06em;line-height:1.7;opacity:0}
+.wv-line:nth-child(1){animation:fade-up 1.5s ease forwards 2s}
+.wv-line:nth-child(2){animation:fade-up 1.5s ease forwards 3s}
+.wv-line:nth-child(3){animation:fade-up 1.5s ease forwards 4s}
+.wv-line:nth-child(4){animation:fade-up 1.5s ease forwards 5s}
+.wv-line:nth-child(5){animation:fade-up 1.5s ease forwards 6s}
+.wv-line:nth-child(6){animation:fade-up 1.5s ease forwards 7s;color:var(--accent);font-size:14px;letter-spacing:.15em}
+.wv-hint{font-family:var(--font-mono);font-size:9px;color:var(--text-faint);letter-spacing:.12em;margin-top:56px;opacity:0;animation:fade-up 1.5s ease forwards 8s}
+.wv-hint .pulse-dot{display:inline-block;width:4px;height:4px;background:var(--accent);border-radius:50%;margin-left:6px;animation:dot-pulse 1.5s ease-in-out infinite}
+@keyframes dot-pulse{0%,100%{opacity:.3;box-shadow:0 0 2px var(--accent)}50%{opacity:1;box-shadow:0 0 8px var(--accent)}}
+@keyframes fade-up{0%{opacity:0;transform:translateY(10px)}100%{opacity:1;transform:translateY(0)}}
+
+/* Setup terminal */
+#setup-screen{
+  position:fixed;inset:0;z-index:10000;background:radial-gradient(ellipse at center,#0A1018 0%,#020408 100%);
+  display:none;align-items:center;justify-content:center;flex-direction:column;
+  font-family:var(--font-mono);opacity:0;transition:opacity 1s ease;
+}
+#setup-screen::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,168,168,.01) 2px,rgba(0,168,168,.01) 4px);pointer-events:none}
+#setup-screen.active{display:flex;opacity:1}
+.setup-content{width:100%;max-width:340px;display:flex;flex-direction:column;gap:6px;padding:0 24px}
+.log-line{font-size:11px;color:var(--text-faint);letter-spacing:.08em;opacity:0;line-height:1.6}
+.log-line.show{animation:log-in .5s ease-out forwards}
+.log-line .hl{color:var(--accent)}.log-line .dim{color:#1A1D26}
+@keyframes log-in{0%{opacity:0;transform:translateY(5px)}100%{opacity:1;transform:translateY(0)}}
+.input-line{display:flex;align-items:center;gap:10px;opacity:0;font-size:14px;letter-spacing:.05em;height:30px;margin-top:4px}
+.input-line.show{animation:log-in .5s ease-out forwards}
+.input-line.dimmed{opacity:.3;pointer-events:none}
+.input-prompt{color:var(--accent);flex-shrink:0;font-size:13px}
+.setup-input{flex:1;background:transparent;border:none;outline:none;color:var(--text);font-size:14px;caret-color:var(--accent);font-family:var(--font-mono);letter-spacing:.06em}
+.setup-input::placeholder{color:#1A1D26;font-style:italic}
+.input-cursor{display:inline-block;width:7px;height:15px;background:var(--accent);animation:cursor-blink .8s infinite;flex-shrink:0}
+
+/* Gender — compact text style */
+.gender-line{display:flex;gap:24px;opacity:0;height:0;overflow:hidden;transition:height .3s,opacity .3s;margin-top:8px;justify-content:center}
+.gender-line.show{opacity:1;height:auto;animation:log-in .5s ease-out forwards}
+.gender-line.dimmed{opacity:.3;pointer-events:none}
+.gender-btn{font-family:var(--font-mono);font-size:12px;color:var(--text-faint);letter-spacing:.12em;cursor:pointer;padding:6px 0;border:none;border-bottom:1px solid transparent;background:none;transition:all .3s}
+.gender-btn.selected{color:var(--text);border-bottom-color:var(--accent)}
+
+/* Anchor ring */
+.anchor-area{display:none;flex-direction:column;align-items:center;margin-top:36px;opacity:0}
+.anchor-area.show{display:flex;animation:log-in .8s ease-out forwards}
+.anchor-ring{width:100px;height:100px;border-radius:50%;border:1px solid rgba(255,255,255,.05);display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;transition:all .5s;-webkit-tap-highlight-color:transparent;user-select:none}
+.anchor-ring:active,.anchor-ring.pressing{border-color:rgba(0,168,168,.4);box-shadow:0 0 36px rgba(0,168,168,.08)}
+.anchor-ring-inner{width:56px;height:56px;border-radius:50%;border:1px solid rgba(255,255,255,.03);display:flex;align-items:center;justify-content:center;transition:all .5s}
+.anchor-ring:active .anchor-ring-inner,.anchor-ring.pressing .anchor-ring-inner{border-color:rgba(0,168,168,.25);box-shadow:0 0 50px rgba(0,168,168,.06)}
+.anchor-dot{width:4px;height:4px;background:var(--text-faint);border-radius:50%;transition:all .5s}
+.anchor-ring.pressing .anchor-dot{background:var(--accent);box-shadow:0 0 16px rgba(0,168,168,.7)}
+.anchor-ring .progress-ring{position:absolute;inset:-6px;transform:rotate(-90deg)}
+.anchor-ring .progress-ring circle{fill:none;stroke:transparent;stroke-width:1.5;stroke-dasharray:302;stroke-dashoffset:302;transition:stroke .5s}
+.anchor-ring.pressing .progress-ring circle{stroke:rgba(0,168,168,.4)}
+.anchor-label{font-family:var(--font-mono);font-size:10px;color:var(--text-faint);letter-spacing:.18em;margin-top:20px;transition:color .5s}
+.anchor-ring.pressing~.anchor-label{color:var(--accent)}
+.anchor-hint{font-size:9px;color:#1A1D26;letter-spacing:.06em;margin-top:8px;transition:color .5s}
+.anchor-ring.pressing~.anchor-hint{color:var(--text-dim)}
+
+.bind-complete-text{display:none;flex-direction:column;align-items:center;gap:8px;margin-top:36px;opacity:0;font-family:var(--font-mono)}
+.bind-complete-text.show{display:flex;animation:log-in .6s ease-out forwards}
+.bind-complete-text .done-line{font-size:10px;color:var(--text-dim);letter-spacing:.15em}
+.bind-complete-text .done-id{font-size:14px;color:var(--accent);letter-spacing:.18em;text-shadow:0 0 12px rgba(0,168,168,.4)}
+
+.bind-flash{position:fixed;inset:0;z-index:10001;background:rgba(0,168,168,.06);opacity:0;pointer-events:none;transition:opacity .15s}
+.bind-flash.fire{opacity:1;transition:opacity 0s}
 
 /* ============================================================
    STORY PAGE — MESSAGE LAYOUT
@@ -517,6 +637,72 @@ body.light .msg-action-line{color:#888}
 <body>
 
 <!-- ============================================================
+     NEXUS OPENING SEQUENCE
+     ============================================================ -->
+<!-- 1. Intro Animation -->
+<div id="intro-overlay">
+  <div class="term-text" id="term-line"><span class="term-cursor">></span> SYS.NEXUS_INIT_</div>
+  <div class="title-box" id="title-box">
+    <div class="title-main" id="title-main">NEXUS</div>
+    <div class="title-sub">/ TRAVERSE</div>
+  </div>
+  <div class="particle-row" id="particle-row">
+    <div class="particle-dot"></div><div class="particle-dot"></div><div class="particle-dot"></div><div class="particle-dot"></div><div class="particle-dot"></div>
+  </div>
+</div>
+
+<!-- 2. Worldview Screen -->
+<div id="worldview-screen" onclick="NexusIntro.handleWorldviewClick()">
+  <div class="wv-mark">◆ NEXUS · 主神空间</div>
+  <div class="wv-title">NEXUS</div>
+  <div class="wv-subtitle">穿越者接入协议 · 第 7 版</div>
+  <div class="wv-lines">
+    <div class="wv-line">你被主神空间选中。</div>
+    <div class="wv-line">每一本书，都是一个副本。</div>
+    <div class="wv-line">完成任务，获得积分，才能离开。</div>
+    <div class="wv-line">原住民不知道自己在书中。</div>
+    <div class="wv-line">你知道。</div>
+    <div class="wv-line">欢迎，穿越者。</div>
+  </div>
+  <div class="wv-hint">轻触屏幕继续<span class="pulse-dot"></span></div>
+</div>
+
+<!-- 3. Character Creation Terminal -->
+<div id="setup-screen">
+  <div class="setup-content">
+    <div class="log-line" id="log-1"><span class="dim">[NEXUS]</span> 扫描到未注册意识体...</div>
+    <div class="log-line" id="log-2"><span class="dim">[NEXUS]</span> 正在建立神经链路...</div>
+    <div class="log-line" id="log-3"><span class="hl">[LINK]</span> 链路就绪。需要穿越者标识。</div>
+    <div class="input-line" id="name-line">
+      <span class="input-prompt">></span>
+      <input type="text" class="setup-input" id="setup-name" placeholder="输入穿越者代号..." maxlength="20" autocomplete="off">
+      <span class="input-cursor" id="name-cursor"></span>
+    </div>
+    <div class="gender-line" id="gender-line">
+      <button class="gender-btn" data-gender="male" onclick="NexusIntro.selectGender(this)">男</button>
+      <button class="gender-btn" data-gender="female" onclick="NexusIntro.selectGender(this)">女</button>
+    </div>
+    <div class="anchor-area" id="anchor-area">
+      <div class="anchor-ring" id="anchor-ring"
+        onmousedown="NexusIntro.startBind(event)" onmouseup="NexusIntro.cancelBind()" onmouseleave="NexusIntro.cancelBind()"
+        ontouchstart="NexusIntro.startBind(event)" ontouchend="NexusIntro.cancelBind()" ontouchcancel="NexusIntro.cancelBind()">
+        <div class="anchor-ring-inner"><div class="anchor-dot"></div></div>
+        <svg class="progress-ring" viewBox="0 0 112 112"><circle cx="56" cy="56" r="48"/></svg>
+      </div>
+      <div class="anchor-label">接入主神空间</div>
+      <div class="anchor-hint" id="anchor-hint">长按以建立链接</div>
+    </div>
+    <div class="bind-complete-text" id="bind-complete">
+      <div class="done-line">LINK ESTABLISHED</div>
+      <div class="done-id" id="done-id">ID: ----</div>
+    </div>
+  </div>
+</div>
+
+<!-- Flash overlay -->
+<div class="bind-flash" id="bind-flash"></div>
+
+<!-- ============================================================
      APP SHELL
      ============================================================ -->
 <div id="app">
@@ -611,6 +797,219 @@ body.light .msg-action-line{color:#888}
      MAIN SCRIPT
      ============================================================ -->
 <script>
+/* ============================================================
+   NEXUS INTRO — opening sequence controller
+   ============================================================ */
+var NexusIntro = {
+  canProceed: false,
+  selectedGender: null,
+  bindTimer: null,
+  BIND_DURATION: 2200,
+
+  /** Play the full opening sequence */
+  play: function() {
+    var term = document.getElementById('term-line');
+    var titleBox = document.getElementById('title-box');
+    var titleMain = document.getElementById('title-main');
+    var particles = document.getElementById('particle-row');
+    if (!term || !titleBox) { this._finish(); return; }
+
+    term.classList.add('play');
+    titleBox.classList.add('play');
+    titleMain.classList.add('strike');
+    particles.classList.add('play');
+
+    var self = this;
+    setTimeout(function() {
+      var intro = document.getElementById('intro-overlay');
+      if (intro) intro.classList.add('hidden');
+      var wv = document.getElementById('worldview-screen');
+      if (wv) wv.classList.add('active');
+
+      setTimeout(function() {
+        self.canProceed = true;
+        if (wv) wv.classList.add('clickable');
+      }, 9000);
+    }, 3700);
+  },
+
+  /** Worldview click → branch based on existing player */
+  handleWorldviewClick: function() {
+    if (!this.canProceed) return;
+    this.canProceed = false;
+
+    // Initialize Store to check for existing profile
+    if (!Store._db) Store.init();
+    var p = Store.player();
+    var hasProfile = p && p.name && p.name.trim() !== '';
+
+    var wv = document.getElementById('worldview-screen');
+    if (wv) wv.classList.add('fade-out');
+
+    var self = this;
+    setTimeout(function() {
+      if (wv) wv.style.display = 'none';
+      if (hasProfile) {
+        // Existing character → skip setup, go directly to main space
+        self._finish();
+      } else {
+        // New character → enter setup terminal
+        var setup = document.getElementById('setup-screen');
+        if (setup) setup.classList.add('active');
+        self._playSetupSequence();
+      }
+    }, 1500);
+  },
+
+  /** Terminal sequence */
+  _playSetupSequence: function() {
+    var log1 = document.getElementById('log-1');
+    var log2 = document.getElementById('log-2');
+    var log3 = document.getElementById('log-3');
+    var nameLine = document.getElementById('name-line');
+
+    setTimeout(function() { if (log1) log1.classList.add('show'); }, 300);
+    setTimeout(function() { if (log2) log2.classList.add('show'); }, 900);
+    setTimeout(function() { if (log3) log3.classList.add('show'); }, 1500);
+
+    var self = this;
+    setTimeout(function() {
+      if (nameLine) nameLine.classList.add('show');
+      var input = document.getElementById('setup-name');
+      if (input) input.focus();
+    }, 2100);
+
+    var nameInput = document.getElementById('setup-name');
+    if (nameInput) {
+      nameInput.addEventListener('input', function(e) {
+        this.value = this.value.replace(/[^a-zA-Z一-鿿]/g, '');
+      });
+      nameInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') { e.preventDefault(); this.blur(); self._showGenderChoice(); }
+      });
+      nameInput.addEventListener('blur', function() {
+        if (this.value.trim() && !self.selectedGender) {
+          setTimeout(function() { self._showGenderChoice(); }, 400);
+        }
+      });
+    }
+  },
+
+  _showGenderChoice: function() {
+    var genderLine = document.getElementById('gender-line');
+    var cursor = document.getElementById('name-cursor');
+    if (!genderLine || genderLine.classList.contains('show')) return;
+    if (cursor) cursor.style.display = 'none';
+    genderLine.classList.add('show');
+  },
+
+  selectGender: function(el) {
+    if (this.selectedGender) return;
+    this.selectedGender = el.getAttribute('data-gender');
+    var btns = document.querySelectorAll('#gender-line .gender-btn');
+    btns.forEach(function(b) { b.classList.remove('selected'); });
+    el.classList.add('selected');
+
+    var self = this;
+    setTimeout(function() {
+      var gl = document.getElementById('gender-line');
+      var nl = document.getElementById('name-line');
+      if (gl) gl.classList.add('dimmed');
+      if (nl) nl.classList.add('dimmed');
+      var aa = document.getElementById('anchor-area');
+      if (aa) aa.classList.add('show');
+    }, 400);
+  },
+
+  /* Long-press bind */
+  startBind: function(e) {
+    e.preventDefault();
+    if (!this.selectedGender) return;
+    var ring = document.getElementById('anchor-ring');
+    var hint = document.getElementById('anchor-hint');
+    var circle = ring ? ring.querySelector('.progress-ring circle') : null;
+    var circumference = 302;
+    if (ring) ring.classList.add('pressing');
+    if (hint) hint.textContent = '链接建立中...';
+    var self = this;
+    var startTime = Date.now();
+    this.bindTimer = setInterval(function() {
+      var elapsed = Date.now() - startTime;
+      var progress = Math.min(elapsed / self.BIND_DURATION, 1);
+      var offset = circumference - circumference * progress;
+      if (circle) circle.style.strokeDashoffset = offset;
+      if (progress >= 1) self._completeBind();
+    }, 16);
+  },
+
+  cancelBind: function() {
+    if (this.bindTimer) { clearInterval(this.bindTimer); this.bindTimer = null; }
+    var ring = document.getElementById('anchor-ring');
+    var hint = document.getElementById('anchor-hint');
+    var circle = ring ? ring.querySelector('.progress-ring circle') : null;
+    if (ring) ring.classList.remove('pressing');
+    if (hint) hint.textContent = '长按以建立链接';
+    if (circle) circle.style.strokeDashoffset = 302;
+  },
+
+  _completeBind: function() {
+    clearInterval(this.bindTimer);
+    this.bindTimer = null;
+
+    var name = (document.getElementById('setup-name') || {}).value || '';
+    name = name.trim() || 'TRAVELER';
+
+    // Save to Store
+    Store.init();
+    var p = Store.player();
+    p.name = name;
+    p.gender = this.selectedGender || 'female';
+    p.points = 100;
+    Store.save();
+
+    var doneId = document.getElementById('done-id');
+    if (doneId) doneId.textContent = 'ID: NX-' + String(Math.floor(1000 + Math.random() * 9000));
+
+    var anchorArea = document.getElementById('anchor-area');
+    if (anchorArea) { anchorArea.classList.remove('show'); setTimeout(function() { anchorArea.style.display = 'none'; }, 400); }
+
+    var self = this;
+    setTimeout(function() {
+      var bc = document.getElementById('bind-complete');
+      if (bc) bc.classList.add('show');
+    }, 400);
+
+    var flash = document.getElementById('bind-flash');
+    if (flash) { flash.classList.add('fire'); setTimeout(function() { flash.classList.remove('fire'); }, 150); }
+
+    setTimeout(function() {
+      var setup = document.getElementById('setup-screen');
+      if (setup) setup.style.opacity = '0';
+      setTimeout(function() {
+        if (setup) setup.style.display = 'none';
+        self._finish();
+      }, 1000);
+    }, 2200);
+  },
+
+  /** Hide all intro layers and start the main app */
+  _finish: function() {
+    // Hide all intro layers
+    ['intro-overlay','worldview-screen','setup-screen','bind-flash'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) { el.style.display = 'none'; el.classList.remove('active','open','clickable'); }
+    });
+    // Show app shell
+    var app = document.getElementById('app');
+    var dock = document.getElementById('dock-wrapper');
+    if (app) app.style.opacity = '1';
+    if (dock) dock.style.opacity = '1';
+    document.body.style.background = '';
+    // Delegate to App.init (which handles Store.init, theme, events, render, char creation)
+    App.init();
+  }
+};
+
 /* ============================================================
    DEFAULT DATA
    ============================================================ */
@@ -3175,7 +3574,15 @@ var App = {
 /* ============================================================
    BOOTSTRAP
    ============================================================ */
-document.addEventListener('DOMContentLoaded', function() { App.init(); });
+document.addEventListener('DOMContentLoaded', function() {
+  // Hide app shell initially (shown after intro completes)
+  var app = document.getElementById('app');
+  var dock = document.getElementById('dock-wrapper');
+  if (app) app.style.opacity = '0';
+  if (dock) dock.style.opacity = '0';
+  // Play opening sequence
+  NexusIntro.play();
+});
 </script>
 </body>
 </html>
