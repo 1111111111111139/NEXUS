@@ -3,17 +3,1746 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
 <title>NEXUS</title>
 <style>
+/* ============================================================
+   RESET
+   ============================================================ */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,"SF Pro Text","PingFang SC","Microsoft YaHei",sans-serif;background:#000;color:#EAEAEA;overflow:hidden;user-select:none;-webkit-user-select:none}
-#app{display:flex;flex-direction:column;height:100dvh;max-width:430px;margin:0 auto;position:relative}
+html{-webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent}
+body{font-family:var(--font-ui);background:var(--bg);color:var(--text);overflow:hidden;user-select:none;-webkit-user-select:none;-webkit-font-smoothing:antialiased}
+input,button,textarea,select{font:inherit;color:inherit;border:none;background:none;outline:none;-webkit-appearance:none;appearance:none}
+button{cursor:pointer;touch-action:manipulation}
+ul,ol{list-style:none}a{color:inherit;text-decoration:none}
+
+/* ============================================================
+   NEXUS THEME — VARIABLES
+   ============================================================ */
+:root{
+  --bg:#06060B;
+  --surface:#0E0E16;
+  --surface-alt:#12121C;
+  --text:#E0E0E8;
+  --text-2:#6B6B7B;
+  --text-3:#3D3D4A;
+  --accent:#00A8A8;
+  --accent-dim:rgba(0,168,168,0.18);
+  --accent-glow:0 0 14px rgba(0,168,168,0.25);
+  --divider:rgba(255,255,255,0.06);
+  --divider-strong:rgba(255,255,255,0.10);
+  --glass:rgba(14,14,22,0.75);
+  --border:rgba(255,255,255,0.08);
+  --radius:8px;
+  --radius-lg:14px;
+  --bubble-npc:rgba(20,20,32,0.96);
+  --bubble-user:rgba(0,168,168,0.10);
+  --bubble-narrative:rgba(14,14,22,0.7);
+  --bubble-traveler:rgba(18,18,30,0.96);
+  --font-serif:"Songti SC","STSong","SimSun",serif;
+  --font-ui:-apple-system,"SF Pro Text","PingFang SC","Microsoft YaHei",sans-serif;
+  --font-mono:"SF Mono","JetBrains Mono","Consolas",monospace;
+  --sat:env(safe-area-inset-top,0px);
+  --sab:max(env(safe-area-inset-bottom,0px),20px);
+}
+
+/* ============================================================
+   LAYOUT
+   ============================================================ */
+#app{
+  display:flex;flex-direction:column;
+  height:100dvh;height:100vh;
+  max-width:430px;margin:0 auto;
+  position:relative;overflow:hidden;
+  background:var(--bg);
+}
+.page{
+  flex:1;overflow-y:auto;overflow-x:hidden;
+  display:none;flex-direction:column;
+  -webkit-overflow-scrolling:touch;
+  padding-bottom:200px;
+}
+.page.active{display:flex}
+
+/* ============================================================
+   BOTTOM DOCK
+   ============================================================ */
+.dock-wrapper{
+  position:fixed;bottom:0;left:50%;transform:translateX(-50%);
+  width:calc(100% - 20px);max-width:410px;z-index:100;
+  padding-bottom:calc(var(--sab) + 4px);
+}
+.dock{
+  background:var(--glass);
+  backdrop-filter:blur(28px);-webkit-backdrop-filter:blur(28px);
+  border:0.5px solid var(--border);
+  border-radius:20px;overflow:hidden;
+  display:flex;flex-direction:column;
+  box-shadow:0 4px 28px rgba(0,0,0,0.5);
+}
+.dock-tabs{
+  display:flex;justify-content:space-around;
+  padding:4px 8px;
+  border-bottom:0.5px solid var(--divider);
+}
+.dock-tab{
+  font-family:var(--font-mono);font-size:10px;
+  color:var(--text-3);letter-spacing:.08em;
+  padding:8px 14px;border-radius:14px;
+  transition:color .2s,background .2s;
+}
+.dock-tab.active{color:var(--accent);background:var(--accent-dim)}
+.dock-input-area{
+  display:flex;align-items:flex-end;padding:8px 10px 8px 14px;
+}
+.dock-input{
+  flex:1;background:transparent;border:none;outline:none;
+  color:var(--text);font-size:14px;font-family:var(--font-ui);
+  line-height:1.4;resize:none;min-height:22px;max-height:80px;
+  padding:6px 0;
+}
+.dock-input::placeholder{color:var(--text-3);opacity:.6;font-size:13px}
+.dock-input:disabled{opacity:.25}
+.send-btn{
+  width:34px;height:34px;border-radius:50%;flex-shrink:0;
+  margin-left:8px;display:flex;align-items:center;justify-content:center;
+  background:var(--accent-dim);color:var(--accent);
+  transition:all .2s;
+}
+.send-btn:active{background:var(--accent);color:var(--bg)}
+
+/* NEXUS status indicator */
+.nexus-core{
+  width:6px;height:6px;border-radius:50%;flex-shrink:0;
+  margin-right:10px;margin-bottom:4px;
+  background:var(--text-3);transition:all .4s;
+}
+.nexus-core.idle{background:var(--accent);box-shadow:0 0 8px var(--accent-dim);animation:corePulse 3s infinite}
+.nexus-core.loading{background:transparent;border:1.5px solid var(--accent);animation:coreSpin 1.2s linear infinite}
+@keyframes corePulse{0%,100%{box-shadow:0 0 6px var(--accent-dim)}50%{box-shadow:0 0 16px var(--accent-dim)}}
+@keyframes coreSpin{to{transform:rotate(360deg)}}
+
+/* ============================================================
+   STORY PAGE — MESSAGE LAYOUT
+   ============================================================ */
+#page-story{padding-top:calc(10px + var(--sat))}
+#story-messages{flex:1;padding:0 14px 20px;display:flex;flex-direction:column;gap:12px}
+
+/* Run info bar */
+.run-info-bar{
+  display:flex;align-items:center;gap:8px;
+  padding:6px 14px;margin:2px 14px 8px;
+  background:var(--glass);border:0.5px solid var(--border);
+  border-radius:14px;backdrop-filter:blur(20px);
+  font-size:10px;color:var(--text-2);letter-spacing:.04em;
+  cursor:pointer;flex-shrink:0;
+}
+.run-info-bar .run-title{color:var(--accent);font-family:var(--font-mono)}
+.run-info-bar .run-divider{color:var(--text-3)}
+
+/* Narrative */
+.msg-narrative{padding:4px 0}
+.msg-narrative .msg-content{
+  font-family:var(--font-serif);font-size:13px;line-height:1.7;
+  color:var(--text-2);border-left:1px solid var(--accent);
+  padding:8px 14px;letter-spacing:.02em;
+  background:var(--bubble-narrative);border-radius:0 4px 4px 0;
+}
+
+/* Avatars — circle */
+.msg-avatar{
+  width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;overflow:hidden;cursor:pointer;position:relative;
+  background:#12121C;border:0.5px solid var(--divider);
+}
+.msg-avatar:active{opacity:.7}
+.msg-avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%}
+.msg-avatar-text{font-family:var(--font-serif);font-size:14px;color:var(--text);line-height:1}
+
+/* Name labels */
+.msg-npc-name,.msg-traveler-name{
+  font-family:var(--font-mono);font-size:9px;letter-spacing:.04em;
+  padding:0 0 2px 2px;
+}
+.msg-npc-name{color:#8EB8D9}
+.msg-traveler-name{color:#A8D8A8}
+.msg-user-name{
+  font-family:var(--font-mono);font-size:9px;color:var(--text-2);
+  letter-spacing:.04em;padding:0 2px 2px 0;text-align:right;
+}
+
+/* NPC & Traveler row */
+.msg-npc-row,.msg-traveler-row{display:flex;align-items:flex-start;gap:10px;width:100%}
+.msg-npc-col,.msg-traveler-col{display:flex;flex-direction:column;align-items:flex-start;max-width:calc(100% - 44px);gap:2px}
+
+/* NPC bubble */
+.msg-npc-bubble{
+  background:var(--bubble-npc);border:0.5px solid rgba(255,255,255,0.08);
+  border-radius:2px 14px 14px 14px;padding:10px 14px;
+  width:fit-content;max-width:100%;position:relative;
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+}
+.msg-npc-bubble::before{
+  content:'';position:absolute;top:0;left:-6px;
+  width:0;height:0;
+  border-right:6px solid var(--bubble-npc);
+  border-bottom:6px solid transparent;
+}
+.msg-npc-bubble .msg-content{font-family:var(--font-mono);font-size:13px;line-height:1.55;color:var(--text);text-align:left}
+
+/* Traveler bubble (teal tint) */
+.msg-traveler-bubble{
+  background:var(--bubble-traveler);border:0.5px solid rgba(0,168,168,0.15);
+  border-radius:2px 14px 14px 14px;padding:10px 14px;
+  width:fit-content;max-width:100%;position:relative;
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+}
+.msg-traveler-bubble::before{
+  content:'';position:absolute;top:0;left:-6px;
+  width:0;height:0;
+  border-right:6px solid var(--bubble-traveler);
+  border-bottom:6px solid transparent;
+}
+.msg-traveler-bubble .msg-content{font-family:var(--font-mono);font-size:13px;line-height:1.55;color:var(--text);text-align:left}
+
+/* User row */
+.msg-user-row{display:flex;align-items:flex-start;gap:10px;width:100%;justify-content:flex-end}
+.msg-user-col{display:flex;flex-direction:column;align-items:flex-end;max-width:calc(100% - 44px);gap:2px}
+.msg-user-bubble{
+  background:var(--bubble-user);border:0.5px solid rgba(0,168,168,0.12);
+  border-radius:14px 2px 14px 14px;padding:10px 14px;
+  width:fit-content;max-width:100%;position:relative;
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+}
+.msg-user-bubble::before{
+  content:'';position:absolute;top:0;right:-6px;
+  width:0;height:0;
+  border-left:6px solid var(--bubble-user);
+  border-bottom:6px solid transparent;
+}
+.msg-user-bubble .msg-content{font-family:var(--font-mono);font-size:13px;line-height:1.5;color:var(--text);text-align:left}
+
+/* Action lines */
+.msg-action-line{font-family:var(--font-mono);font-size:11px;color:#6B7B8B;font-style:italic;padding:2px 0;line-height:1.5}
+.msg-npc-col .msg-action-line,.msg-traveler-col .msg-action-line{text-align:left}
+.msg-user-col .msg-action-line{text-align:right}
+.action-text{font-style:italic;opacity:0.8;color:#6B7B8B}
+
+/* Telemetry tags */
+.msg-telemetry{display:flex;gap:5px;flex-wrap:wrap;margin-top:2px}
+.msg-tag{
+  font-family:var(--font-mono);font-size:9px;padding:2px 7px;border-radius:5px;
+  letter-spacing:.06em;border:0.5px solid var(--divider);color:var(--text-3);
+}
+.msg-tag.pts{color:var(--accent);border-color:var(--accent-dim);background:var(--accent-dim)}
+.msg-tag.aff{color:var(--text-2);border-color:rgba(255,255,255,0.1)}
+.msg-tag.item{color:var(--text-3)}
+.msg-npc-col .msg-telemetry,.msg-traveler-col .msg-telemetry{justify-content:flex-start}
+.msg-user-col .msg-telemetry{justify-content:flex-end}
+
+/* System message */
+.msg-system{align-self:center;text-align:center;max-width:100%;margin:4px 0}
+.msg-system .msg-content{
+  display:inline-block;font-family:var(--font-mono);font-size:9px;
+  color:var(--text-2);letter-spacing:.06em;opacity:0.5;
+  padding:4px 12px;
+}
+
+/* ============================================================
+   SPACE PAGE
+   ============================================================ */
+#page-space{padding:calc(14px + var(--sat)) 14px 20px}
+.space-header{text-align:center;padding:16px 0 20px}
+.space-title{font-family:var(--font-mono);font-size:11px;color:var(--accent);letter-spacing:.12em}
+.space-subtitle{font-size:10px;color:var(--text-3);margin-top:4px;letter-spacing:.06em}
+.space-subtabs{display:flex;gap:6px;margin-bottom:14px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.space-subtab{
+  padding:7px 14px;border-radius:16px;font-family:var(--font-mono);font-size:10px;
+  color:var(--text-3);border:0.5px solid var(--divider);
+  white-space:nowrap;cursor:pointer;transition:all .2s;
+  flex-shrink:0;
+}
+.space-subtab.active{color:var(--accent);border-color:var(--accent-dim);background:var(--accent-dim)}
+.space-panel{display:none}
+.space-panel.active{display:block}
+
+/* Shop items */
+.shop-item{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:12px 14px;border-bottom:0.5px solid var(--divider);
+  transition:background .15s;
+}
+.shop-item:active{background:var(--surface-hover, rgba(255,255,255,0.02))}
+.shop-item-name{font-size:13px;color:var(--text)}
+.shop-item-desc{font-size:10px;color:var(--text-2);margin-top:2px}
+.shop-item-price{font-family:var(--font-mono);font-size:11px;color:var(--accent);white-space:nowrap}
+.shop-item-btn{
+  padding:5px 12px;border-radius:14px;font-size:10px;
+  background:var(--accent-dim);color:var(--accent);
+  border:0.5px solid rgba(0,168,168,0.2);cursor:pointer;
+  transition:all .15s;white-space:nowrap;
+}
+.shop-item-btn:active{background:var(--accent);color:var(--bg)}
+
+/* Traveler list */
+.traveler-card{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 14px;border-bottom:0.5px solid var(--divider);
+  cursor:pointer;transition:background .15s;
+}
+.traveler-card:active{background:var(--surface-hover, rgba(255,255,255,0.02))}
+.traveler-card-name{font-size:13px;color:var(--text)}
+.traveler-card-meta{font-size:10px;color:var(--text-2);margin-top:2px}
+.traveler-card-status{font-family:var(--font-mono);font-size:9px;color:var(--accent)}
+.traveler-card-status.offline{color:var(--text-3)}
+
+/* Run records */
+.run-record{
+  padding:12px 14px;border-bottom:0.5px solid var(--divider);
+  display:flex;justify-content:space-between;align-items:center;
+}
+.run-record-title{font-size:13px;color:var(--text)}
+.run-record-meta{font-size:10px;color:var(--text-2);margin-top:2px}
+.run-record-result{font-family:var(--font-mono);font-size:11px}
+.run-record-result.win{color:var(--accent)}
+.run-record-result.loss{color:#8E2A2A}
+
+/* ============================================================
+   STATUS PAGE
+   ============================================================ */
+#page-status{padding:calc(14px + var(--sat)) 14px 20px}
+.status-section{margin-bottom:18px}
+.status-section-title{
+  font-family:var(--font-mono);font-size:9px;color:var(--text-3);
+  letter-spacing:.1em;padding:0 0 8px 0;border-bottom:0.5px solid var(--divider);
+  margin-bottom:10px;
+}
+.stat-row{display:flex;justify-content:space-between;padding:6px 0;font-size:12px}
+.stat-label{color:var(--text-2)}
+.stat-val{color:var(--text);font-family:var(--font-mono)}
+.stat-val.accent{color:var(--accent)}
+
+/* Task list */
+.task-item{
+  padding:10px 14px;border:0.5px solid var(--divider);border-radius:var(--radius);
+  margin-bottom:6px;background:var(--surface);
+}
+.task-item-title{font-size:12px;color:var(--text)}
+.task-item-progress{font-size:10px;color:var(--text-2);margin-top:3px}
+.task-item.complete{border-color:var(--accent-dim);opacity:.7}
+.task-item.complete .task-item-title{text-decoration:line-through;color:var(--text-3)}
+
+/* ============================================================
+   SETTINGS PAGE
+   ============================================================ */
+#page-settings{padding:calc(14px + var(--sat)) 14px 20px}
+.settings-group{margin-bottom:20px}
+.settings-group-title{
+  font-family:var(--font-mono);font-size:9px;color:var(--text-3);
+  letter-spacing:.1em;padding:0 0 8px 0;
+}
+.settings-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0}
+.settings-row label{font-size:12px;color:var(--text)}
+.settings-row input[type="text"],.settings-row input[type="password"]{
+  background:var(--surface);border:0.5px solid var(--border);
+  border-radius:var(--radius);padding:8px 12px;font-size:12px;
+  width:200px;color:var(--text);font-family:var(--font-mono);
+  text-align:right;
+}
+.settings-row input::placeholder{color:var(--text-3)}
+.theme-toggle{
+  width:44px;height:24px;border-radius:12px;
+  background:var(--surface);border:0.5px solid var(--border);
+  cursor:pointer;position:relative;transition:all .3s;
+}
+.theme-toggle::after{
+  content:'';position:absolute;top:3px;left:3px;
+  width:18px;height:18px;border-radius:50%;
+  background:var(--accent);transition:all .3s;
+}
+body.light .theme-toggle{background:var(--divider)}
+body.light .theme-toggle::after{left:23px}
+.btn-accent{
+  padding:8px 20px;border-radius:var(--radius);
+  background:var(--accent-dim);color:var(--accent);
+  border:0.5px solid rgba(0,168,168,0.2);
+  font-family:var(--font-mono);font-size:11px;letter-spacing:.04em;
+  cursor:pointer;transition:all .2s;
+}
+.btn-accent:hover{background:var(--accent);color:var(--bg)}
+
+/* ============================================================
+   MODALS & OVERLAYS
+   ============================================================ */
+.modal-overlay{
+  position:fixed;inset:0;z-index:200;
+  background:rgba(0,0,0,0.7);
+  display:none;align-items:flex-end;justify-content:center;
+}
+.modal-overlay.open{display:flex}
+.modal-sheet{
+  width:100%;max-width:430px;max-height:85dvh;
+  background:var(--surface);border-radius:20px 20px 0 0;
+  border:0.5px solid var(--border);border-bottom:none;
+  overflow-y:auto;padding:20px 16px calc(20px + var(--sab));
+  animation:sheetUp .3s ease-out;
+}
+@keyframes sheetUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+
+/* Center modal */
+.center-modal{
+  position:fixed;inset:0;z-index:300;
+  background:rgba(0,0,0,0.8);
+  display:none;align-items:center;justify-content:center;
+}
+.center-modal.open{display:flex}
+.center-modal-box{
+  width:calc(100% - 40px);max-width:390px;
+  background:var(--surface);border:0.5px solid var(--border);
+  border-radius:var(--radius-lg);padding:24px 20px;
+}
+
+/* Toast */
+.toast{font-family:var(--font-mono);font-size:9px;color:var(--text-2);text-align:center;padding:8px 0;opacity:0;transition:opacity .3s}
+.toast.show{opacity:1}
+.val-toast{
+  position:fixed;bottom:120px;left:50%;transform:translateX(-50%);z-index:999;
+  font-family:var(--font-mono);font-size:12px;color:var(--text);
+  padding:8px 16px;border-radius:8px;background:var(--surface);
+  border:0.5px solid var(--border);opacity:0;pointer-events:none;
+  transition:opacity .25s,transform .25s;letter-spacing:.04em;
+  backdrop-filter:blur(6px);
+}
+.val-toast.show{opacity:1;transform:translateX(-50%) translateY(-4px)}
+.val-toast.pts{color:var(--accent)}
+
+/* ============================================================
+   LIGHT THEME
+   ============================================================ */
+body.light{
+  --bg:#F2F2F5;--surface:#FDFDFD;--surface-alt:#F5F5F8;
+  --text:#1A1A24;--text-2:#6B6B7B;--text-3:#A0A0AE;
+  --accent:#008080;--accent-dim:rgba(0,128,128,0.10);
+  --divider:rgba(0,0,0,.06);--divider-strong:rgba(0,0,0,.10);
+  --glass:rgba(250,250,252,.85);--border:rgba(0,0,0,.08);
+  --bubble-npc:rgba(245,245,250,0.97);
+  --bubble-user:rgba(240,250,250,0.97);
+  --bubble-narrative:rgba(245,245,248,0.8);
+  --bubble-traveler:rgba(242,248,248,0.97);
+  --surface-hover:rgba(0,0,0,.02);
+}
+body.light .dock{box-shadow:0 4px 24px rgba(0,0,0,.08)}
+body.light .msg-narrative .msg-content{color:#555}
+body.light .msg-action-line{color:#888}
+
+/* ============================================================
+   SCROLLBAR & UTILITY
+   ============================================================ */
+::-webkit-scrollbar{width:3px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--divider);border-radius:2px}
+.hidden{display:none !important}
 </style>
 </head>
 <body>
-<div id="app"></div>
+
+<!-- ============================================================
+     APP SHELL
+     ============================================================ -->
+<div id="app">
+  <!-- Story Page -->
+  <div id="page-story" class="page active">
+    <div id="run-info-bar" class="run-info-bar hidden">
+      <span class="run-title" id="run-bar-title">--</span>
+      <span class="run-divider">|</span>
+      <span id="run-bar-task">--</span>
+    </div>
+    <div id="story-messages"></div>
+    <div id="story-toast" class="toast"></div>
+  </div>
+
+  <!-- Space Page -->
+  <div id="page-space" class="page">
+    <div class="space-header">
+      <div class="space-title">主 神 空 间</div>
+      <div class="space-subtitle" id="space-pts">积分 0</div>
+    </div>
+    <div class="space-subtabs" id="space-subtabs">
+      <div class="space-subtab active" data-panel="shop">商店</div>
+      <div class="space-subtab" data-panel="travelers">通讯录</div>
+      <div class="space-subtab" data-panel="records">记录</div>
+    </div>
+    <div id="space-panel-shop" class="space-panel active"></div>
+    <div id="space-panel-travelers" class="space-panel"></div>
+    <div id="space-panel-records" class="space-panel"></div>
+  </div>
+
+  <!-- Status Page -->
+  <div id="page-status" class="page">
+    <div id="status-content"></div>
+  </div>
+
+  <!-- Settings Page -->
+  <div id="page-settings" class="page">
+    <div id="settings-content"></div>
+  </div>
+</div>
+
+<!-- ============================================================
+     BOTTOM DOCK
+     ============================================================ -->
+<div class="dock-wrapper" id="dock-wrapper">
+  <div class="dock">
+    <div class="dock-tabs">
+      <div class="dock-tab active" data-page="story">Story</div>
+      <div class="dock-tab" data-page="space">空间</div>
+      <div class="dock-tab" data-page="status">状态</div>
+      <div class="dock-tab" data-page="settings">设置</div>
+    </div>
+    <div class="dock-input-area" id="dock-input-area">
+      <div class="nexus-core idle" id="nexus-core" title="AI Core"></div>
+      <textarea class="dock-input" id="dock-input" placeholder="输入行动..." rows="1"></textarea>
+      <button class="send-btn" id="send-btn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     MODALS
+     ============================================================ -->
+<div class="modal-overlay" id="modal-sheet">
+  <div class="modal-sheet" id="modal-sheet-inner"></div>
+</div>
+<div class="center-modal" id="center-modal">
+  <div class="center-modal-box" id="center-modal-box"></div>
+</div>
+<div class="val-toast" id="val-toast"></div>
+
+<!-- ============================================================
+     MAIN SCRIPT
+     ============================================================ -->
 <script>
-// NEXUS — place holder
+/* ============================================================
+   DEFAULT DATA
+   ============================================================ */
+var DEFAULT_SHOP = [
+  { id:'intel', name:'副本情报', desc:'提前获知目标副本的关键剧情节点', price:200, consumable:true },
+  { id:'identity', name:'身份设定包', desc:'进副本前自定义身份背景', price:300, consumable:true },
+  { id:'revive', name:'复活券', desc:'副本中死亡后复活一次（SAN归零）', price:500, consumable:true },
+  { id:'escape', name:'撤离券', desc:'紧急撤离当前副本（积分惩罚-50%）', price:150, consumable:true },
+  { id:'aff_boost', name:'好感度加成', desc:'指定角色初始好感度+20', price:100, consumable:true },
+  { id:'gear', name:'基础装备包', desc:'跨副本通用装备一套', price:400, consumable:false }
+];
+
+var DEFAULT_TRAVELERS = [
+  { id:'t1', name:'苏羽', gender:'male', appearance:'冷峻青年，眼角有道旧伤', background:'退役特种兵', personality:'寡言但可靠', points:3200, level:3, online:true, contactUnlocked:true },
+  { id:'t2', name:'林初夏', gender:'female', appearance:'长发披肩，笑容温和', background:'前大厂程序员', personality:'理性冷静，擅长策略分析', points:5800, level:5, online:true, contactUnlocked:true },
+  { id:'t3', name:'沈夜', gender:'male', appearance:'黑色风衣，眼中带一丝阴沉', background:'未知，自称记者', personality:'神秘，偶尔流露偏执', points:1200, level:2, online:false, contactUnlocked:true }
+];
+
+/* ============================================================
+   STORE — DATA LAYER
+   ============================================================ */
+var Store = {
+  _db: null,
+  _key: 'NEXUS_V1',
+
+  init: function() {
+    var raw = localStorage.getItem(this._key);
+    if (raw) {
+      try { this._db = JSON.parse(raw); } catch(e) { this._db = null; }
+    }
+    if (!this._db || !this._db.version) {
+      this._db = {
+        version: 1,
+        player: {
+          name: '', gender: 'female', appearance: '', background: '', personality: '',
+          points: 0, level: 1, completedRuns: 0,
+          inventory: [], companions: []
+        },
+        currentRun: null,
+        runHistory: [],
+        travelers: JSON.parse(JSON.stringify(DEFAULT_TRAVELERS)),
+        messages: [],
+        privateChats: {},
+        shop: { purchased: [] },
+        settings: { theme: 'dark', apiKey: '', model: 'gpt-4o-mini', baseUrl: '' }
+      };
+      this.save();
+    }
+  },
+
+  save: function() { localStorage.setItem(this._key, JSON.stringify(this._db)); },
+
+  player: function() { return this._db.player; },
+  messages: function() { return this._db.messages; },
+  travelers: function() { return this._db.travelers; },
+
+  addMessage: function(msg) {
+    msg.id = 'm_' + Date.now() + '_' + Math.random().toString(36).slice(2,6);
+    msg.timestamp = msg.timestamp || Date.now();
+    this._db.messages.push(msg);
+    this.save();
+  },
+
+  traveler: function(id) {
+    return this._db.travelers.find(function(t) { return t.id === id; });
+  },
+
+  /** Start a new run */
+  startRun: function(runData) {
+    if (this._db.currentRun) {
+      this._db.runHistory.push(this._db.currentRun);
+    }
+    this._db.currentRun = runData;
+    this.save();
+  },
+
+  /** End current run, record result */
+  endRun: function(result) {
+    if (this._db.currentRun) {
+      this._db.currentRun.result = result;
+      this._db.currentRun.endedAt = Date.now();
+      this._db.runHistory.push(this._db.currentRun);
+      var p = this._db.player;
+      p.completedRuns = (p.completedRuns || 0) + 1;
+      this._db.currentRun = null;
+      this.save();
+    }
+  },
+
+  /** Shop purchase tracking */
+  purchaseItem: function(itemId) {
+    this._db.shop.purchased.push({ id: itemId, time: Date.now() });
+    this.save();
+  },
+
+  hasPurchased: function(itemId) {
+    return this._db.shop.purchased.some(function(p) { return p.id === itemId; });
+  },
+
+  /** Private chat */
+  getOrCreateChat: function(travelerId) {
+    if (!this._db.privateChats[travelerId]) {
+      this._db.privateChats[travelerId] = { messages: [], hasUnread: false };
+    }
+    return this._db.privateChats[travelerId];
+  },
+
+  exportJSON: function() { return JSON.stringify(this._db); },
+  importJSON: function(json) { try { this._db = JSON.parse(json); this.save(); return true; } catch(e) { return false; } },
+  resetAll: function() { localStorage.removeItem(this._key); location.reload(); }
+};
+
+/* ============================================================
+   AI — API & MARKER ENGINE
+   ============================================================ */
+var AI = {
+  /** OpenAI-compatible chat completions (non-streaming) */
+  call: function(messages, options) {
+    return new Promise(function(resolve, reject) {
+      var s = Store._db.settings;
+      var baseUrl = (s.baseUrl || 'https://api.openai.com').replace(/\/+$/, '');
+      var url = baseUrl + '/v1/chat/completions';
+      var body = {
+        model: s.model || 'gpt-4o-mini',
+        messages: messages,
+        temperature: (options && options.temperature) || 0.8,
+        max_tokens: (options && options.max_tokens) || 2048
+      };
+      fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (s.apiKey || '') },
+        body: JSON.stringify(body)
+      }).then(function(r) {
+        if (!r.ok) return r.text().then(function(t) { reject(new Error('API ' + r.status + ': ' + t)); });
+        return r.json();
+      }).then(function(data) {
+        if (data && data.choices && data.choices[0]) {
+          resolve(data.choices[0].message.content);
+        } else { reject(new Error('Empty response')); }
+      }).catch(reject);
+    });
+  },
+
+  /** Streaming chat completions */
+  streamCall: function(messages, onChunk, onDone, onError, options) {
+    var s = Store._db.settings;
+    var baseUrl = (s.baseUrl || 'https://api.openai.com').replace(/\/+$/, '');
+    var url = baseUrl + '/v1/chat/completions';
+    var body = {
+      model: s.model || 'gpt-4o-mini',
+      messages: messages,
+      temperature: (options && options.temperature) || 0.8,
+      max_tokens: (options && options.max_tokens) || 2048,
+      stream: true
+    };
+    fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (s.apiKey || '') },
+      body: JSON.stringify(body)
+    }).then(function(r) {
+      if (!r.ok) return r.text().then(function(t) { onError(new Error('API ' + r.status + ': ' + t)); });
+      var reader = r.body.getReader();
+      var decoder = new TextDecoder();
+      var buffer = '';
+      function pump() {
+        reader.read().then(function(result) {
+          if (result.done) { if (buffer.trim()) { var txt = AI._parseSSE(buffer); if (txt) onChunk(txt); } onDone(); return; }
+          buffer += decoder.decode(result.value, { stream: true });
+          var lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+          for (var i = 0; i < lines.length; i++) {
+            var line = lines[i].trim();
+            if (line.startsWith('data: ')) {
+              var data = line.slice(6);
+              if (data === '[DONE]') continue;
+              try { var json = JSON.parse(data); var txt = json.choices[0].delta.content; if (txt) onChunk(txt); } catch(e) {}
+            }
+          }
+          pump();
+        }).catch(onError);
+      }
+      pump();
+    }).catch(onError);
+  },
+
+  _parseSSE: function(buffer) {
+    var result = '';
+    var lines = buffer.split('\n');
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i].trim();
+      if (line.startsWith('data: ')) {
+        var data = line.slice(6);
+        if (data === '[DONE]') continue;
+        try { var json = JSON.parse(data); var txt = json.choices[0].delta.content; if (txt) result += txt; } catch(e) {}
+      }
+    }
+    return result || null;
+  },
+
+  /** Test API connection */
+  testConnection: function() {
+    return this.call([{ role:'user', content:'回复"OK"' }], { max_tokens: 10, temperature: 0 });
+  },
+
+  /* ============================================================
+     MARKER PARSER — reference VOID parseCommands structure
+     ============================================================ */
+  parseCommands: function(text) {
+    var cmds = [];
+    var patterns = [
+      { re: /\[SAN ([+\-]\d+)\]/g, cmd: 'san' },
+      { re: /\[POINTS ([+\-]\d+)\]/g, cmd: 'points' },
+      { re: /\[AFF ([^:]+):([+\-]\d+)\]/g, cmd: 'affection' },
+      { re: /\[ITEM \+([^:]+):([^\]]*)\]/g, cmd: 'item_add' },
+      { re: /\[ITEM -([^\]]+)\]/g, cmd: 'item_remove' },
+      { re: /\[TASK_UPDATE ([^:]+):([^\]]+)\]/g, cmd: 'task_update' },
+      { re: /\[TASK_COMPLETE ([^\]]+)\]/g, cmd: 'task_complete' },
+      { re: /\[RUN_END ([^:]+):([^\]]*)\]/g, cmd: 'run_end' },
+      { re: /\[NPC ([^:]+):([^:]+):([^\]]*)\]/g, cmd: 'npc' },
+      { re: /\[TRAVELER ([^:]+):([^\]]*)\]/g, cmd: 'traveler' },
+      { re: /\[MSG ([^:]+):([^\]]+)\]/g, cmd: 'message' },
+      { re: /\[LOCATION ([^\]]+)\]/g, cmd: 'location' },
+      { re: /\[TIME ([^\]]+)\]/g, cmd: 'time' }
+    ];
+    patterns.forEach(function(pt) {
+      var match;
+      while ((match = pt.re.exec(text)) !== null) {
+        cmds.push({ cmd: pt.cmd, args: match.slice(1), index: match.index });
+      }
+    });
+    cmds.sort(function(a, b) { return a.index - b.index; });
+    return cmds;
+  },
+
+  /** Apply parsed commands to game state */
+  applyCommands: function(cmds) {
+    var p = Store.player();
+    var run = Store._db.currentRun;
+    var self = this;
+
+    cmds.forEach(function(item) {
+      switch (item.cmd) {
+        case 'san':
+          // SAN is optional, per-run basis
+          if (run) { run.playerSan = Math.max(0, (run.playerSan || 100) + parseInt(item.args[0])); }
+          break;
+
+        case 'points':
+          var delta = parseInt(item.args[0]);
+          p.points = Math.max(0, (p.points || 0) + delta);
+          App._showValueToast((delta >= 0 ? '+' : '') + delta + ' 积分', 'pts');
+          break;
+
+        case 'affection':
+          var npcName = item.args[0].trim();
+          var affDelta = parseInt(item.args[1]);
+          if (run && run.npcs) {
+            var npc = run.npcs.find(function(n) { return n.name === npcName; });
+            if (npc) { npc.affection = Math.max(-100, Math.min(100, (npc.affection || 0) + affDelta)); }
+          }
+          App._showValueToast(npcName + ' 好感 ' + (affDelta >= 0 ? '+' : '') + affDelta, 'pts');
+          break;
+
+        case 'item_add':
+          var itemName = item.args[0].trim();
+          var itemDesc = (item.args[1] || '').trim();
+          p.inventory.push({ id: 'i_' + Date.now(), name: itemName, desc: itemDesc, time: Date.now() });
+          break;
+
+        case 'item_remove':
+          var rmName = item.args[0].trim();
+          var idx = p.inventory.findIndex(function(inv) { return inv.name === rmName; });
+          if (idx >= 0) p.inventory.splice(idx, 1);
+          break;
+
+        case 'task_update':
+          if (run) {
+            var taskName = item.args[0].trim();
+            var progress = item.args[1].trim();
+            if (!run.taskLog) run.taskLog = {};
+            run.taskLog[taskName] = progress;
+          }
+          break;
+
+        case 'task_complete':
+          if (run) {
+            var tName = item.args[0].trim();
+            if (!run.completedTasks) run.completedTasks = [];
+            if (run.completedTasks.indexOf(tName) < 0) run.completedTasks.push(tName);
+          }
+          break;
+
+        case 'run_end':
+          var result = item.args[0].trim();
+          var reason = (item.args[1] || '').trim();
+          App._endRun(result, reason);
+          break;
+
+        case 'npc':
+          var nn = item.args[0].trim();
+          var nType = item.args[1].trim();
+          var nDesc = (item.args[2] || '').trim();
+          if (run) {
+            if (!run.npcs) run.npcs = [];
+            if (!run.npcs.find(function(n) { return n.name === nn; })) {
+              run.npcs.push({ name: nn, type: nType, desc: nDesc, affection: 0, met: true });
+            }
+          }
+          break;
+
+        case 'traveler':
+          var tName = item.args[0].trim();
+          var tDesc = (item.args[1] || '').trim();
+          if (run) {
+            if (!run.companions) run.companions = [];
+            if (!run.companions.find(function(c) { return c.name === tName; })) {
+              run.companions.push({ name: tName, desc: tDesc });
+            }
+          }
+          break;
+
+        case 'message':
+          var fromName = item.args[0].trim();
+          var msgContent = item.args[1].trim();
+          App._receiveTravelerMsg(fromName, msgContent);
+          break;
+
+        case 'location':
+          if (run) { run.currentLocation = item.args[0].trim(); }
+          break;
+
+        case 'time':
+          if (run) { run.currentTime = item.args[0].trim(); }
+          break;
+      }
+    });
+  },
+
+  /** Parse narrative/dialogue from AI response */
+  parseResponse: function(text) {
+    // Strip markers for display
+    var clean = text;
+    var markerPatterns = [
+      /\[SAN [+\-]\d+\]/g, /\[POINTS [+\-]\d+\]/g, /\[AFF [^\]]+\]/g,
+      /\[ITEM [+\-][^\]]+\]/g, /\[TASK_UPDATE [^\]]+\]/g, /\[TASK_COMPLETE [^\]]+\]/g,
+      /\[RUN_END [^\]]+\]/g, /\[NPC [^\]]+\]/g, /\[TRAVELER [^\]]+\]/g,
+      /\[MSG [^\]]+\]/g, /\[LOCATION [^\]]+\]/g, /\[TIME [^\]]+\]/g
+    ];
+    markerPatterns.forEach(function(re) { clean = clean.replace(re, ''); });
+    return clean.trim();
+  }
+};
+
+/* ============================================================
+   SYSTEM PROMPTS
+   ============================================================ */
+
+/** Build the main narrative system prompt */
+function buildMainSystemPrompt() {
+  var p = Store.player();
+  var run = Store._db.currentRun;
+  var lines = [];
+
+  // Global rules (top priority)
+  lines.push('[全局规则]');
+  lines.push('你是主神空间的AI主持人。你叙述世界，扮演所有NPC和穿越者，裁定规则，推进剧情。');
+  lines.push('你在一个名为NEXUS的多世界穿书游戏中。玩家是被主神空间召唤的穿越者。');
+  lines.push('禁止AI以自身身份说话（作为AI、我是语言模型等）。');
+  lines.push('禁止打破第四面墙（提及玩家现实身份、暗示NEXUS是游戏等）。');
+  lines.push('');
+
+  // World rules
+  lines.push('[世界观]');
+  lines.push('玩家是穿越者，投入不同小说世界执行任务。原住民不知道自己是书中角色。其他穿越者是和玩家同等身份的存在。');
+  lines.push('');
+
+  // Narrative style
+  lines.push('[叙述规则]');
+  lines.push('使用第二人称"你"进行叙述。');
+  lines.push('叙述要有沉浸感，结合当前副本的世界观风格。');
+  lines.push('描写角色的表情、语气、肢体动作，通过"（动作描写）"格式表达。');
+  lines.push('避免直接说"请选择"，而是通过剧情自然地给玩家留出行动空间。');
+  lines.push('');
+
+  // Marker reference
+  lines.push('[标记系统]');
+  lines.push('在回复中使用以下标记传递游戏数据：');
+  lines.push('[POINTS +X/-X] — 积分变化');
+  lines.push('[AFF 角色名:+X/-X] — 好感度变化');
+  lines.push('[ITEM +名称:描述] / [ITEM -名称] — 道具变动');
+  lines.push('[TASK_UPDATE 任务名:进度] / [TASK_COMPLETE 任务名] — 任务进度');
+  lines.push('[RUN_END 成功/失败:原因] — 副本结束');
+  lines.push('[NPC 名称:角色类型:简介] — 新角色登场');
+  lines.push('[TRAVELER 名称:简介] — 穿越者出现');
+  lines.push('[MSG 穿越者名:内容] — 穿越者发来私信');
+  lines.push('[LOCATION 地点名] — 场景切换');
+  lines.push('[TIME 书中日期] — 时间推进');
+  lines.push('');
+
+  // Player state
+  lines.push('[玩家状态]');
+  lines.push('姓名：' + (p.name || '未设定'));
+  lines.push('性别：' + (p.gender === 'female' ? '女' : '男'));
+  if (p.appearance) lines.push('外貌：' + p.appearance);
+  if (p.background) lines.push('背景：' + p.background);
+  if (p.personality) lines.push('性格：' + p.personality);
+  lines.push('穿越者等级：' + (p.level || 1));
+  lines.push('积分：' + (p.points || 0));
+  lines.push('');
+
+  // Current run
+  if (run) {
+    lines.push('[当前副本]');
+    lines.push('书名：《' + (run.title || '未知') + '》');
+    lines.push('类型：' + (run.type || '未知'));
+    lines.push('难度：' + (run.difficulty || '普通'));
+    lines.push('玩家身份：' + (run.playerRole || '未设定'));
+    lines.push('当前地点：' + (run.currentLocation || run.startLocation || '未知'));
+    lines.push('书中时间：' + (run.currentTime || run.startTime || '未知'));
+    lines.push('主线任务：' + (run.mainTask ? run.mainTask.name : '未设定'));
+    lines.push('');
+    if (run.npcs && run.npcs.length > 0) {
+      lines.push('[已知角色]');
+      run.npcs.forEach(function(n) {
+        lines.push(n.name + '（' + n.type + '）— ' + n.desc + ' | 好感度：' + (n.affection || 0));
+      });
+      lines.push('');
+    }
+    if (run.companions && run.companions.length > 0) {
+      lines.push('[同行穿越者]');
+      run.companions.forEach(function(c) { lines.push(c.name + ' — ' + c.desc); });
+      lines.push('');
+    }
+  }
+
+  return lines.join('\n');
+}
+
+/** Build the traveler private chat system prompt */
+function buildTravelerChatPrompt(traveler) {
+  var p = Store.player();
+  var lines = [];
+
+  lines.push('[穿越者私聊]');
+  lines.push('你现在扮演穿越者「' + traveler.name + '」。你是在NEXUS主神空间中的穿越者。');
+  lines.push('你不是AI。你有独立意识。你是玩家在主神空间认识的联系人。');
+  lines.push('');
+  lines.push('[你的角色设定]');
+  lines.push('姓名：' + traveler.name);
+  lines.push('性别：' + (traveler.gender === 'female' ? '女' : '男'));
+  lines.push('外貌：' + (traveler.appearance || ''));
+  lines.push('背景：' + (traveler.background || ''));
+  lines.push('性格：' + (traveler.personality || ''));
+  lines.push('穿越者等级：' + (traveler.level || 1));
+  lines.push('');
+  lines.push('[对方信息]');
+  lines.push('对方是玩家，穿越者「' + (p.name || '未设定') + '」。');
+  lines.push('');
+  lines.push('[聊天规则]');
+  lines.push('保持角色一致性。语气、态度符合你的性格设定。');
+  lines.push('可以讨论副本经验、主神空间、积分商店等游戏内话题。');
+  lines.push('可以分享你自己的副本经历（自由创作）。');
+  lines.push('可以接受或拒绝组队邀请。');
+  lines.push('回复简洁自然，不要长篇大论。');
+  lines.push('用中文回复。');
+  lines.push('');
+
+  return lines.join('\n');
+}
+
+/* ============================================================
+   APP — MAIN CONTROLLER
+   ============================================================ */
+var App = {
+  _aiBusy: false,
+  _streamBubble: null,
+
+  init: function() {
+    Store.init();
+    this.applyTheme();
+    this.bindEvents();
+    this.renderAll();
+
+    // If no player name set, show character creation
+    var p = Store.player();
+    if (!p.name) {
+      this._showCharCreation();
+    }
+  },
+
+  applyTheme: function() {
+    var theme = Store._db.settings.theme || 'dark';
+    if (theme === 'light') { document.body.classList.add('light'); }
+    else { document.body.classList.remove('light'); }
+  },
+
+  toggleTheme: function() {
+    var s = Store._db.settings;
+    s.theme = s.theme === 'light' ? 'dark' : 'light';
+    Store.save();
+    this.applyTheme();
+  },
+
+  /* ============================================================
+     NAVIGATION
+     ============================================================ */
+  navigateTo: function(pageName) {
+    var pages = document.querySelectorAll('.page');
+    pages.forEach(function(pg) { pg.classList.remove('active'); });
+    var target = document.getElementById('page-' + pageName);
+    if (target) target.classList.add('active');
+
+    var tabs = document.querySelectorAll('.dock-tab');
+    tabs.forEach(function(t) { t.classList.remove('active'); });
+    var activeTab = document.querySelector('.dock-tab[data-page="' + pageName + '"]');
+    if (activeTab) activeTab.classList.add('active');
+
+    // Hide input for non-story pages
+    var inputArea = document.getElementById('dock-input-area');
+    if (pageName === 'story') { inputArea.classList.remove('hidden'); }
+    else { inputArea.classList.add('hidden'); }
+
+    // Refresh content
+    if (pageName === 'space') this.renderSpace();
+    if (pageName === 'status') this.renderStatus();
+    if (pageName === 'settings') this.renderSettings();
+  },
+
+  bindEvents: function() {
+    var self = this;
+
+    // Dock tabs
+    document.querySelectorAll('.dock-tab').forEach(function(tab) {
+      tab.addEventListener('click', function() { self.navigateTo(this.dataset.page); });
+    });
+
+    // Send button
+    document.getElementById('send-btn').addEventListener('click', function() { self.sendMessage(); });
+
+    // Input keypress
+    var input = document.getElementById('dock-input');
+    input.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); self.sendMessage(); }
+    });
+
+    // Space subtabs
+    document.getElementById('space-subtabs').addEventListener('click', function(e) {
+      var tab = e.target.closest('.space-subtab');
+      if (!tab) return;
+      document.querySelectorAll('#space-subtabs .space-subtab').forEach(function(t) { t.classList.remove('active'); });
+      tab.classList.add('active');
+      var panelName = tab.dataset.panel;
+      document.querySelectorAll('#page-space .space-panel').forEach(function(p) { p.classList.remove('active'); });
+      var panel = document.getElementById('space-panel-' + panelName);
+      if (panel) panel.classList.add('active');
+      if (panelName === 'travelers') self.renderTravelerList();
+      if (panelName === 'records') self.renderRunRecords();
+    });
+
+    // Run info bar
+    document.getElementById('run-info-bar').addEventListener('click', function() { self.navigateTo('status'); });
+
+    // Nexus core
+    document.getElementById('nexus-core').addEventListener('click', function() { self.navigateTo('status'); });
+  },
+
+  /* ============================================================
+     SEND MESSAGE
+     ============================================================ */
+  sendMessage: function() {
+    if (this._aiBusy) return;
+    var input = document.getElementById('dock-input');
+    var text = input.value.trim();
+    if (!text) return;
+    input.value = '';
+    input.style.height = 'auto';
+
+    Store.addMessage({ type: 'player', content: text });
+    this.renderMessages();
+    this.scrollToBottom();
+    this._triggerAI(text);
+  },
+
+  _triggerAI: function(userText) {
+    var self = this;
+    this._aiBusy = true;
+    this._setCoreState('loading');
+
+    var messages = [{ role: 'system', content: buildMainSystemPrompt() }];
+
+    // Add recent message context
+    var allMsgs = Store.messages();
+    var recent = allMsgs.slice(-20);
+    recent.forEach(function(m) {
+      if (m.type === 'player') { messages.push({ role: 'user', content: m.content }); }
+      else if (m.type === 'narrative' || m.type === 'system') { messages.push({ role: 'assistant', content: m.content }); }
+      else if (m.type === 'npc' || m.type === 'traveler') {
+        messages.push({ role: 'assistant', content: '[' + m.characterName + ']: ' + m.content });
+      }
+    });
+    // Ensure the latest user message is the last one
+    messages.push({ role: 'user', content: userText });
+
+    var fullResponse = '';
+    var bubbleEl = null;
+
+    AI.streamCall(messages,
+      function(chunk) {
+        fullResponse += chunk;
+        if (!bubbleEl) {
+          bubbleEl = self._createStreamBubble();
+        }
+        self._updateStreamBubble(bubbleEl, fullResponse);
+      },
+      function() {
+        // Done
+        if (bubbleEl) bubbleEl.remove();
+        var cmds = AI.parseCommands(fullResponse);
+        var cleanText = AI.parseResponse(fullResponse);
+        if (cleanText) {
+          Store.addMessage({ type: 'narrative', content: cleanText });
+        }
+        AI.applyCommands(cmds);
+        self._aiBusy = false;
+        self._setCoreState('idle');
+        self.renderMessages();
+        self.scrollToBottom();
+        Store.save();
+      },
+      function(err) {
+        if (bubbleEl) bubbleEl.remove();
+        Store.addMessage({ type: 'system', content: '错误：' + (err.message || '连接失败'), meta: { isError: true } });
+        self._aiBusy = false;
+        self._setCoreState('idle');
+        self.renderMessages();
+        self.scrollToBottom();
+      },
+      { temperature: 0.8, max_tokens: 2048 }
+    );
+  },
+
+  _createStreamBubble: function() {
+    var container = document.getElementById('story-messages');
+    var el = document.createElement('div');
+    el.className = 'msg msg-narrative';
+    el.innerHTML = '<div class="msg-content" style="opacity:0.6"><span class="typing-cursor">|</span></div>';
+    container.appendChild(el);
+    return el;
+  },
+
+  _updateStreamBubble: function(el, text) {
+    var clean = AI.parseResponse(text);
+    el.querySelector('.msg-content').innerHTML = App.formatContent(clean) + '<span style="animation:corePulse 0.8s infinite">|</span>';
+    document.getElementById('story-messages').scrollTop = document.getElementById('story-messages').scrollHeight;
+  },
+
+  _setCoreState: function(state) {
+    var core = document.getElementById('nexus-core');
+    core.classList.remove('idle', 'loading');
+    if (state) core.classList.add(state);
+  },
+
+  /* ============================================================
+     RENDER — MESSAGES
+     ============================================================ */
+  renderMessages: function() {
+    var container = document.getElementById('story-messages');
+    container.innerHTML = '';
+    var msgs = Store.messages();
+
+    msgs.forEach(function(msg) {
+      var el = document.createElement('div');
+      el.className = 'msg msg-' + msg.type;
+
+      if (msg.type === 'narrative') {
+        el.innerHTML = '<div class="msg-content">' + App.formatContent(msg.content) + '</div>';
+      } else if (msg.type === 'system') {
+        el.innerHTML = '<div class="msg-content">' + App.formatContent(msg.content) + '</div>';
+      } else if (msg.type === 'player') {
+        var p = Store.player();
+        var first = (p.name || 'N').charAt(0);
+        el.className = 'msg msg-user-row';
+        el.innerHTML =
+          '<div class="msg-user-col">' +
+            '<div class="msg-user-name">' + App.escapeHtml(p.name || 'NEXUS') + '</div>' +
+            '<div class="msg-user-bubble"><div class="msg-content">' + App.formatContent(msg.content) + '</div></div>' +
+          '</div>' +
+          '<div class="msg-avatar" style="background:#1A1A28"><span class="msg-avatar-text">' + App.escapeHtml(first) + '</span></div>';
+      } else if (msg.type === 'npc') {
+        var run = Store._db.currentRun;
+        var npc = run && run.npcs ? run.npcs.find(function(n) { return n.name === msg.characterName; }) : null;
+        var isTraveler = run && run.companions ? run.companions.find(function(c) { return c.name === msg.characterName; }) : null;
+        var rowCls = isTraveler ? 'msg-traveler-row' : 'msg-npc-row';
+        var colCls = isTraveler ? 'msg-traveler-col' : 'msg-npc-col';
+        var bubbleCls = isTraveler ? 'msg-traveler-bubble' : 'msg-npc-bubble';
+        var nameCls = isTraveler ? 'msg-traveler-name' : 'msg-npc-name';
+        var first = (msg.characterName || '?').charAt(0);
+        el.className = 'msg ' + rowCls;
+        el.innerHTML =
+          '<div class="msg-avatar" style="background:#12121C"><span class="msg-avatar-text">' + App.escapeHtml(first) + '</span></div>' +
+          '<div class="' + colCls + '">' +
+            '<div class="' + nameCls + '">' + App.escapeHtml(msg.characterName || '?') + (isTraveler ? ' ◈' : '') + '</div>' +
+            '<div class="' + bubbleCls + '"><div class="msg-content">' + App.formatContent(msg.content) + '</div></div>' +
+          '</div>';
+      }
+      container.appendChild(el);
+    });
+  },
+
+  /* ============================================================
+     RENDER — SPACE
+     ============================================================ */
+  renderSpace: function() {
+    var p = Store.player();
+    document.getElementById('space-pts').textContent = '积分 ' + (p.points || 0);
+    this.renderShop();
+  },
+
+  renderShop: function() {
+    var p = Store.player();
+    var panel = document.getElementById('space-panel-shop');
+    panel.innerHTML = DEFAULT_SHOP.map(function(item) {
+      var purchased = Store.hasPurchased(item.id);
+      var canBuy = !purchased || !item.consumable;
+      return '<div class="shop-item">' +
+        '<div>' +
+          '<div class="shop-item-name">' + App.escapeHtml(item.name) + '</div>' +
+          '<div class="shop-item-desc">' + App.escapeHtml(item.desc) + '</div>' +
+        '</div>' +
+        (canBuy
+          ? '<div style="display:flex;align-items:center;gap:8px">' +
+              '<span class="shop-item-price">' + item.price + ' PTS</span>' +
+              '<button class="shop-item-btn" onclick="App._buyItem(\'' + item.id + '\')">' + (purchased ? '再次购买' : '购买') + '</button>' +
+            '</div>'
+          : '<span style="font-size:10px;color:var(--text-3)">已拥有</span>'
+        ) +
+      '</div>';
+    }).join('');
+  },
+
+  _buyItem: function(itemId) {
+    var item = DEFAULT_SHOP.find(function(i) { return i.id === itemId; });
+    if (!item) return;
+    var p = Store.player();
+    if (p.points < item.price) { alert('积分不足'); return; }
+    p.points -= item.price;
+    Store.purchaseItem(itemId);
+    Store.save();
+    this.renderSpace();
+    this.renderStatus();
+  },
+
+  renderTravelerList: function() {
+    var panel = document.getElementById('space-panel-travelers');
+    var travelers = Store.travelers();
+    panel.innerHTML = travelers.map(function(t) {
+      return '<div class="traveler-card" onclick="App._openTravelerChat(\'' + t.id + '\')">' +
+        '<div class="msg-avatar" style="width:40px;height:40px;background:#12121C">' +
+          '<span class="msg-avatar-text">' + App.escapeHtml(t.name.charAt(0)) + '</span>' +
+        '</div>' +
+        '<div style="flex:1;min-width:0">' +
+          '<div class="traveler-card-name">' + App.escapeHtml(t.name) + ' <span style="font-size:9px;color:var(--text-3)">Lv.' + (t.level||1) + '</span></div>' +
+          '<div class="traveler-card-meta">' + App.escapeHtml(t.background || '') + '</div>' +
+        '</div>' +
+        '<div class="traveler-card-status' + (t.online ? '' : ' offline') + '">' + (t.online ? '在线' : '离线') + '</div>' +
+      '</div>';
+    }).join('');
+  },
+
+  renderRunRecords: function() {
+    var panel = document.getElementById('space-panel-records');
+    var history = Store._db.runHistory || [];
+    if (history.length === 0) {
+      panel.innerHTML = '<div style="text-align:center;color:var(--text-3);padding:30px 0;font-size:12px">暂无副本记录</div>';
+      return;
+    }
+    panel.innerHTML = history.slice().reverse().map(function(r) {
+      var resultCls = r.result === '成功' ? 'win' : 'loss';
+      return '<div class="run-record">' +
+        '<div>' +
+          '<div class="run-record-title">《' + App.escapeHtml(r.title || '未知') + '》</div>' +
+          '<div class="run-record-meta">' + App.escapeHtml(r.type || '') + ' · ' + App.escapeHtml(r.difficulty || '') + '</div>' +
+        '</div>' +
+        '<div class="run-record-result ' + resultCls + '">' + App.escapeHtml(r.result || '') + '</div>' +
+      '</div>';
+    }).join('');
+  },
+
+  /* ============================================================
+     RENDER — STATUS
+     ============================================================ */
+  renderStatus: function() {
+    var p = Store.player();
+    var run = Store._db.currentRun;
+    var el = document.getElementById('status-content');
+    var html = '';
+
+    // Player section
+    html += '<div class="status-section">' +
+      '<div class="status-section-title">穿越者信息</div>' +
+      '<div class="stat-row"><span class="stat-label">姓名</span><span class="stat-val">' + App.escapeHtml(p.name || '未设定') + '</span></div>' +
+      '<div class="stat-row"><span class="stat-label">性别</span><span class="stat-val">' + (p.gender === 'female' ? '女' : '男') + '</span></div>' +
+      '<div class="stat-row"><span class="stat-label">等级</span><span class="stat-val accent">Lv.' + (p.level || 1) + '</span></div>' +
+      '<div class="stat-row"><span class="stat-label">积分</span><span class="stat-val accent">' + (p.points || 0) + '</span></div>' +
+      '<div class="stat-row"><span class="stat-label">完成副本</span><span class="stat-val">' + (p.completedRuns || 0) + '次</span></div>' +
+    '</div>';
+
+    // Inventory
+    html += '<div class="status-section">' +
+      '<div class="status-section-title">道具 (' + (p.inventory || []).length + ')</div>';
+    if (p.inventory.length === 0) {
+      html += '<div style="font-size:11px;color:var(--text-3);padding:6px 0">暂无道具</div>';
+    } else {
+      p.inventory.forEach(function(item) {
+        html += '<div class="stat-row"><span class="stat-label">' + App.escapeHtml(item.name) + '</span><span class="stat-val" style="font-size:10px;color:var(--text-3)">' + App.escapeHtml(item.desc || '') + '</span></div>';
+      });
+    }
+    html += '</div>';
+
+    // Current run
+    if (run) {
+      html += '<div class="status-section">' +
+        '<div class="status-section-title">当前副本</div>' +
+        '<div class="stat-row"><span class="stat-label">书名</span><span class="stat-val">《' + App.escapeHtml(run.title || '未知') + '》</span></div>' +
+        '<div class="stat-row"><span class="stat-label">类型</span><span class="stat-val">' + App.escapeHtml(run.type || '') + '</span></div>' +
+        '<div class="stat-row"><span class="stat-label">难度</span><span class="stat-val accent">' + App.escapeHtml(run.difficulty || '') + '</span></div>' +
+        '<div class="stat-row"><span class="stat-label">身份</span><span class="stat-val">' + App.escapeHtml(run.playerRole || '') + '</span></div>' +
+        '<div class="stat-row"><span class="stat-label">位置</span><span class="stat-val">' + App.escapeHtml(run.currentLocation || run.startLocation || '') + '</span></div>' +
+        '<div class="stat-row"><span class="stat-label">时间</span><span class="stat-val">' + App.escapeHtml(run.currentTime || run.startTime || '') + '</span></div>' +
+      '</div>';
+
+      // Tasks
+      html += '<div class="status-section"><div class="status-section-title">任务</div>';
+      var mainTask = run.mainTask;
+      if (mainTask) {
+        var completed = run.completedTasks && run.completedTasks.indexOf(mainTask.name) >= 0;
+        html += '<div class="task-item' + (completed ? ' complete' : '') + '">' +
+          '<div class="task-item-title">◆ ' + App.escapeHtml(mainTask.name) + '</div>' +
+          '<div class="task-item-progress">' + App.escapeHtml(run.taskLog && run.taskLog[mainTask.name] || mainTask.desc || '进行中') + '</div>' +
+        '</div>';
+      }
+      if (run.sideTasks) {
+        run.sideTasks.forEach(function(t) {
+          var sCompleted = run.completedTasks && run.completedTasks.indexOf(t.name) >= 0;
+          html += '<div class="task-item' + (sCompleted ? ' complete' : '') + '">' +
+            '<div class="task-item-title">◇ ' + App.escapeHtml(t.name) + '</div>' +
+            '<div class="task-item-progress">' + App.escapeHtml(run.taskLog && run.taskLog[t.name] || t.desc || '进行中') + '</div>' +
+          '</div>';
+        });
+      }
+      html += '</div>';
+    } else {
+      html += '<div class="status-section">' +
+        '<div class="status-section-title">当前副本</div>' +
+        '<div style="font-size:11px;color:var(--text-3);padding:12px 0;text-align:center">暂无活跃副本<br><br><button class="btn-accent" onclick="App._startNewRun()">进入副本</button></div>' +
+      '</div>';
+    }
+
+    el.innerHTML = html;
+  },
+
+  /* ============================================================
+     RENDER — SETTINGS
+     ============================================================ */
+  renderSettings: function() {
+    var s = Store._db.settings;
+    var el = document.getElementById('settings-content');
+    el.innerHTML =
+      '<div class="settings-group">' +
+        '<div class="settings-group-title">API 配置</div>' +
+        '<div class="settings-row"><label>Base URL</label><input type="text" id="set-base-url" value="' + App.escapeHtml(s.baseUrl || '') + '" placeholder="https://api.openai.com"></div>' +
+        '<div class="settings-row"><label>API Key</label><input type="password" id="set-api-key" value="' + App.escapeHtml(s.apiKey || '') + '" placeholder="sk-..."></div>' +
+        '<div class="settings-row"><label>Model</label><input type="text" id="set-model" value="' + App.escapeHtml(s.model || '') + '" placeholder="gpt-4o-mini"></div>' +
+        '<button class="btn-accent" style="width:100%;margin-top:8px" onclick="App._saveSettings()">保存并测试连接</button>' +
+      '</div>' +
+      '<div class="settings-group">' +
+        '<div class="settings-group-title">外观</div>' +
+        '<div class="settings-row"><label>浅色主题</label><div class="theme-toggle" onclick="App.toggleTheme()"></div></div>' +
+      '</div>' +
+      '<div class="settings-group">' +
+        '<div class="settings-group-title">数据</div>' +
+        '<div class="settings-row"><label>导出存档</label><button class="btn-accent" onclick="App._exportData()">导出</button></div>' +
+        '<div class="settings-row"><label>导入存档</label><button class="btn-accent" onclick="App._importData()">导入</button></div>' +
+        '<div class="settings-row"><label>重置所有数据</label><button class="btn-accent" style="color:#8E2A2A;border-color:rgba(142,42,42,0.2);background:rgba(142,42,42,0.1)" onclick="App._resetAll()">重置</button></div>' +
+      '</div>';
+  },
+
+  _saveSettings: function() {
+    var s = Store._db.settings;
+    s.baseUrl = document.getElementById('set-base-url').value.trim();
+    s.apiKey = document.getElementById('set-api-key').value.trim();
+    s.model = document.getElementById('set-model').value.trim() || 'gpt-4o-mini';
+    Store.save();
+    this._showToast('设置已保存。正在测试连接...');
+    var self = this;
+    AI.testConnection().then(function() {
+      self._showToast('API连接成功');
+    }).catch(function(err) {
+      self._showToast('连接失败：' + (err.message || '未知错误'));
+    });
+  },
+
+  _exportData: function() {
+    var json = Store.exportJSON();
+    var blob = new Blob([json], { type: 'application/json' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'nexus_backup_' + new Date().toISOString().slice(0,10) + '.json';
+    a.click();
+  },
+
+  _importData: function() {
+    var self = this;
+    var input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = function() {
+      var file = this.files[0];
+      if (!file) return;
+      var reader = new FileReader();
+      reader.onload = function() {
+        if (Store.importJSON(reader.result)) {
+          self._showToast('导入成功。刷新页面。');
+          setTimeout(function() { location.reload(); }, 800);
+        } else {
+          self._showToast('导入失败：格式错误');
+        }
+      };
+      reader.readAsText(file);
+    };
+    input.click();
+  },
+
+  _resetAll: function() {
+    if (confirm('确定要重置所有数据吗？此操作不可恢复。')) {
+      Store.resetAll();
+    }
+  },
+
+  /* ============================================================
+     RUN MANAGEMENT
+     ============================================================ */
+  _startNewRun: function() {
+    var self = this;
+    if (this._aiBusy) return;
+
+    this._showToast('正在生成副本...');
+    var p = Store.player();
+
+    var prompt = '请生成一个穿书副本。玩家是穿越者「' + (p.name || '未设定') + '」。\n' +
+      '随机选择一个小说类型（古言宫斗、古言仙侠、现代都市、末世求生、玄幻修仙、科幻星际、西幻冒险、娱乐圈、豪门总裁等）。\n' +
+      '用JSON格式返回副本信息：\n' +
+      '{\n' +
+      '  "type": "副本类型",\n' +
+      '  "title": "书名",\n' +
+      '  "worldDesc": "世界观简述",\n' +
+      '  "playerRole": "玩家在书中的身份",\n' +
+      '  "startLocation": "初始地点",\n' +
+      '  "startTime": "书中初始时间",\n' +
+      '  "difficulty": "简单/普通/困难/极难",\n' +
+      '  "baseReward": 积分数字,\n' +
+      '  "mainTask": {"name": "主线任务名", "desc": "任务描述"},\n' +
+      '  "sideTasks": [{"name": "支线任务名", "desc": "任务描述"}]\n' +
+      '}\n' +
+      '只返回JSON，不要其他内容。';
+
+    AI.call([
+      { role: 'system', content: '你是NEXUS主神空间的副本生成器。你只返回严格的JSON，不包含任何其他文字。' },
+      { role: 'user', content: prompt }
+    ], { temperature: 1.0, max_tokens: 1024 }).then(function(resp) {
+      try {
+        // Extract JSON
+        var jsonStr = resp.trim();
+        var idx = jsonStr.indexOf('{');
+        if (idx > 0) jsonStr = jsonStr.slice(idx);
+        idx = jsonStr.lastIndexOf('}');
+        if (idx >= 0) jsonStr = jsonStr.slice(0, idx + 1);
+        var runData = JSON.parse(jsonStr);
+        runData.id = 'r_' + Date.now();
+        runData.startedAt = Date.now();
+        runData.npcs = [];
+        runData.companions = [];
+        runData.completedTasks = [];
+        runData.taskLog = {};
+        Store.startRun(runData);
+        Store.addMessage({ type: 'system', content: '【副本开始】《' + runData.title + '》— ' + runData.type + ' | 难度：' + runData.difficulty });
+        Store.addMessage({ type: 'narrative', content: '你站在主神空间的光柱中。周围的空间开始扭曲，世界在你眼前重组。\n\n当你再次睁开眼睛，你已经身处《' + runData.title + '》的世界。\n\n' + (runData.worldDesc || '') + '\n\n你的身份是：' + (runData.playerRole || '未知') + '。\n当前地点：' + (runData.startLocation || '未知') + '。\n时间：' + (runData.startTime || '未知') + '。\n\n主线任务：' + (runData.mainTask && runData.mainTask.name || '未知') });
+        self._updateRunBar();
+        self.renderMessages();
+        self.renderStatus();
+        self.scrollToBottom();
+        Store.save();
+      } catch(e) {
+        Store.addMessage({ type: 'system', content: '副本生成失败，请重试。' + e.message });
+        self.renderMessages();
+      }
+    }).catch(function(err) {
+      Store.addMessage({ type: 'system', content: 'API错误：' + (err.message || '连接失败'), meta: { isError: true } });
+      self.renderMessages();
+    });
+  },
+
+  _endRun: function(result, reason) {
+    var run = Store._db.currentRun;
+    if (!run) return;
+
+    var reward = run.baseReward || 0;
+    if (result === '成功') {
+      var diffMult = { '简单': 0.5, '普通': 1, '困难': 1.5, '极难': 2 };
+      reward = Math.floor(reward * (diffMult[run.difficulty] || 1));
+    } else {
+      reward = 0;
+    }
+
+    Store.player().points += reward;
+    Store.endRun(result);
+    Store.addMessage({ type: 'system', content: '【副本结束】结果：' + result + '。' + (reason || '') + ' 积分 +' + reward });
+    this._updateRunBar();
+    this.renderSpace();
+    this.renderStatus();
+    Store.save();
+  },
+
+  _updateRunBar: function() {
+    var bar = document.getElementById('run-info-bar');
+    var run = Store._db.currentRun;
+    if (run) {
+      bar.classList.remove('hidden');
+      document.getElementById('run-bar-title').textContent = run.title || '--';
+      document.getElementById('run-bar-task').textContent = (run.mainTask && run.mainTask.name) || '--';
+    } else {
+      bar.classList.add('hidden');
+    }
+  },
+
+  /* ============================================================
+     TRAVELER CHAT
+     ============================================================ */
+  _openTravelerChat: function(travelerId) {
+    var t = Store.traveler(travelerId);
+    if (!t) return;
+    // Simple chat in modal for now
+    var self = this;
+    var chat = Store.getOrCreateChat(travelerId);
+    var html = '<div style="padding:0 0 12px;border-bottom:0.5px solid var(--divider);margin-bottom:10px">' +
+      '<div style="font-size:14px;color:var(--text)">' + App.escapeHtml(t.name) + ' <span style="font-size:10px;color:var(--text-3)">Lv.' + (t.level||1) + '</span></div>' +
+      '<div style="font-size:10px;color:var(--text-3)">' + App.escapeHtml(t.background||'') + ' · ' + (t.online ? '在线' : '离线') + '</div>' +
+    '</div>';
+    html += '<div id="traveler-chat-msgs" style="max-height:300px;overflow-y:auto;margin-bottom:12px">';
+    if (chat.messages.length === 0) {
+      html += '<div style="text-align:center;color:var(--text-3);padding:20px 0;font-size:11px">开始对话</div>';
+    } else {
+      chat.messages.forEach(function(m) {
+        var side = m.from === 'player' ? 'user' : 'other';
+        html += '<div style="margin-bottom:8px;display:flex;justify-content:' + (side === 'user' ? 'flex-end' : 'flex-start') + '">' +
+          '<div style="max-width:80%;padding:8px 12px;border-radius:' + (side === 'user' ? '12px 12px 2px 12px' : '12px 12px 12px 2px') + ';background:' + (side === 'user' ? 'var(--bubble-user)' : 'var(--bubble-npc)') + ';font-size:12px;line-height:1.5">' + App.escapeHtml(m.content) + '</div>' +
+        '</div>';
+      });
+    }
+    html += '</div>';
+    html += '<div style="display:flex;gap:8px">' +
+      '<input id="traveler-chat-input" style="flex:1;background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius);padding:8px 12px;font-size:12px;color:var(--text)" placeholder="发送消息...">' +
+      '<button class="btn-accent" onclick="App._sendTravelerMsg(\'' + travelerId + '\')">发送</button>' +
+    '</div>';
+
+    document.getElementById('modal-sheet-inner').innerHTML = html;
+    document.getElementById('modal-sheet').classList.add('open');
+    this._bindSheetClose();
+  },
+
+  _sendTravelerMsg: function(travelerId) {
+    var input = document.getElementById('traveler-chat-input');
+    if (!input) return;
+    var text = input.value.trim();
+    if (!text) return;
+    input.value = '';
+
+    var chat = Store.getOrCreateChat(travelerId);
+    chat.messages.push({ from: 'player', content: text, time: Date.now() });
+
+    // Refresh modal
+    this._openTravelerChat(travelerId);
+
+    // Get AI response
+    var t = Store.traveler(travelerId);
+    if (!t || !t.online) {
+      chat.messages.push({ from: 'traveler', content: '（当前不在线）', time: Date.now() });
+      Store.save();
+      this._openTravelerChat(travelerId);
+      return;
+    }
+
+    var self = this;
+    var sysMsg = buildTravelerChatPrompt(t);
+    var messages = [{ role: 'system', content: sysMsg }];
+    // Add recent chat context
+    chat.messages.slice(-10).forEach(function(m) {
+      messages.push({ role: m.from === 'player' ? 'user' : 'assistant', content: m.content });
+    });
+
+    AI.call(messages, { temperature: 0.9, max_tokens: 512 }).then(function(resp) {
+      chat.messages.push({ from: 'traveler', content: resp.trim(), time: Date.now() });
+      Store.save();
+      self._openTravelerChat(travelerId);
+    }).catch(function(err) {
+      chat.messages.push({ from: 'traveler', content: '（信号中断...）', time: Date.now() });
+      Store.save();
+      self._openTravelerChat(travelerId);
+    });
+  },
+
+  _receiveTravelerMsg: function(fromName, content) {
+    var t = Store.travelers().find(function(tr) { return tr.name === fromName; });
+    if (t) {
+      var chat = Store.getOrCreateChat(t.id);
+      chat.messages.push({ from: 'traveler', content: content, time: Date.now() });
+      chat.hasUnread = true;
+      Store.save();
+    }
+    Store.addMessage({ type: 'system', content: '【' + fromName + '发来私信】' + content });
+  },
+
+  /* ============================================================
+     UTILITIES
+     ============================================================ */
+  renderAll: function() {
+    this.renderMessages();
+    this._updateRunBar();
+    this.scrollToBottom();
+  },
+
+  scrollToBottom: function() {
+    var container = document.getElementById('story-messages');
+    if (container) requestAnimationFrame(function() { container.scrollTop = container.scrollHeight; });
+  },
+
+  formatContent: function(text) {
+    if (!text) return '';
+    return this.escapeHtml(text)
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.+?)\*/g, '<em>$1</em>')
+      .replace(/\n/g, '<br>');
+  },
+
+  escapeHtml: function(str) {
+    if (!str) return '';
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  },
+
+  _showToast: function(msg) {
+    var t = document.getElementById('story-toast');
+    t.textContent = msg; t.classList.add('show');
+    setTimeout(function() { t.classList.remove('show'); }, 2000);
+  },
+
+  _showValueToast: function(msg, cls) {
+    var t = document.getElementById('val-toast');
+    t.textContent = msg; t.className = 'val-toast ' + (cls || '') + ' show';
+    setTimeout(function() { t.classList.remove('show'); }, 1800);
+  },
+
+  _bindSheetClose: function() {
+    var self = this;
+    var overlay = document.getElementById('modal-sheet');
+    overlay.onclick = function(e) { if (e.target === overlay) { overlay.classList.remove('open'); } };
+  },
+
+  _showCharCreation: function() {
+    var html = '<div style="text-align:center;padding:20px 0">' +
+      '<div style="font-family:var(--font-mono);font-size:11px;color:var(--accent);letter-spacing:.12em;margin-bottom:16px">NEXUS · 穿越者创建</div>' +
+      '<div class="settings-row"><label>姓名</label><input type="text" id="cc-name" placeholder="穿越者代号" style="width:200px"></div>' +
+      '<div class="settings-row"><label>外貌</label><input type="text" id="cc-appearance" placeholder="外貌描述" style="width:200px"></div>' +
+      '<div class="settings-row"><label>背景</label><input type="text" id="cc-background" placeholder="穿越前的背景" style="width:200px"></div>' +
+      '<div class="settings-row"><label>性格</label><input type="text" id="cc-personality" placeholder="性格特征" style="width:200px"></div>' +
+      '<button class="btn-accent" style="width:100%;margin-top:12px" onclick="App._saveCharCreation()">确认创建</button>' +
+      '<div style="font-size:10px;color:var(--text-3);margin-top:10px">或<a style="color:var(--accent);cursor:pointer" onclick="App._randomChar()"> 随机生成 </a></div>' +
+    '</div>';
+    document.getElementById('center-modal-box').innerHTML = html;
+    document.getElementById('center-modal').classList.add('open');
+  },
+
+  _saveCharCreation: function() {
+    var p = Store.player();
+    p.name = document.getElementById('cc-name').value.trim() || '轮回者' + Math.floor(Math.random() * 9000);
+    p.appearance = document.getElementById('cc-appearance').value.trim();
+    p.background = document.getElementById('cc-background').value.trim();
+    p.personality = document.getElementById('cc-personality').value.trim();
+    p.points = 100;
+    Store.save();
+    document.getElementById('center-modal').classList.remove('open');
+    this.renderAll();
+    this.renderStatus();
+    this._showToast('穿越者 ' + p.name + ' 已登录NEXUS');
+  },
+
+  _randomChar: function() {
+    var names = ['苏晚', '林默', '陈曦', '叶落', '温九', '顾尘', '白露', '沈雁'];
+    var appearances = ['黑色短发，眼神锐利', '长发及腰，面容清冷', '普通相貌，但目光深邃', '戴着眼镜，书卷气十足'];
+    var backgrounds = ['前·公司社畜', '退役特种兵', '自由职业插画师', '网络小说作家', '医院急诊科医生'];
+    var personalities = ['冷静理性，偶尔幽默', '表面冷漠内心柔软', '热情冲动，爱管闲事', '沉默寡言，善于观察'];
+    var p = Store.player();
+    p.name = names[Math.floor(Math.random() * names.length)];
+    p.appearance = appearances[Math.floor(Math.random() * appearances.length)];
+    p.background = backgrounds[Math.floor(Math.random() * backgrounds.length)];
+    p.personality = personalities[Math.floor(Math.random() * personalities.length)];
+    p.points = 100;
+    Store.save();
+    document.getElementById('center-modal').classList.remove('open');
+    this.renderAll();
+    this.renderStatus();
+    this._showToast('穿越者 ' + p.name + ' 已登录NEXUS');
+  }
+};
+
+/* ============================================================
+   BOOTSTRAP
+   ============================================================ */
+document.addEventListener('DOMContentLoaded', function() { App.init(); });
 </script>
 </body>
 </html>
