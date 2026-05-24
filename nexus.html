@@ -162,7 +162,7 @@ ul,ol{list-style:none}a{color:inherit;text-decoration:none}
   flex-shrink:0;animation:expandIn .25s ease-out;
 }
 .run-expand-panel.open{display:block}
-@keyframes expandIn{from{opacity:0;max-height:0;padding-top:0;padding-bottom:0}to{opacity:1;max-height:200px;padding-top:12px;padding-bottom:12px}}
+@keyframes expandIn{from{opacity:0;max-height:0;padding-top:0;padding-bottom:0}to{opacity:1;max-height:500px;padding-top:12px;padding-bottom:12px}}
 .run-expand-panel .expand-row{display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:11px}
 .run-expand-panel .expand-label{color:var(--text-3);font-family:var(--font-mono);font-size:9px;letter-spacing:.05em}
 .run-expand-panel .expand-value{color:var(--text);font-family:var(--font-mono);font-size:10px}
@@ -2595,38 +2595,40 @@ var App = {
     if (!run || !panel) return;
     var html = '';
 
-    // Main task with progress
+    // === Main Task Card ===
     if (run.mainTask) {
       var mtDone = run.completedTasks && run.completedTasks.indexOf(run.mainTask.name) >= 0;
-      var progress = (run.taskLog && run.taskLog[run.mainTask.name]) || run.mainTask.desc || '进行中';
-      html += '<div class="expand-row"><span class="expand-label">◆ 主线任务</span><span class="expand-value task">' + App.escapeHtml(run.mainTask.name) + '</span></div>';
-      html += '<div class="expand-row">' +
-        '<span class="expand-label">进度</span>' +
-        '<span class="expand-value" style="color:' + (mtDone ? 'var(--accent)' : 'var(--text)') + '">' +
-          (mtDone ? '✓ 已完成' : App.escapeHtml(progress)) +
-        '</span>' +
+      var mtProg = run.taskLog && run.taskLog[run.mainTask.name];
+      var progPct = mtDone ? 100 : (mtProg ? 50 : 20);
+      html += '<div style="background:var(--surface);border:1px solid ' + (mtDone ? 'var(--accent-dim)' : 'var(--divider)') + ';border-radius:var(--radius);padding:10px 12px;margin-bottom:6px">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">' +
+          '<span style="font-size:9px;color:var(--accent);font-family:var(--font-mono);letter-spacing:.04em">◆ 主线任务</span>' +
+          '<span style="font-size:8px;padding:2px 7px;border-radius:8px;font-family:var(--font-mono);color:' + (mtDone ? 'var(--accent)' : 'var(--text-3)') + ';background:' + (mtDone ? 'var(--accent-dim)' : 'rgba(255,255,255,.03)') + ';border:0.5px solid ' + (mtDone ? 'var(--accent-dim)' : 'var(--divider)') + '">' + (mtDone ? '✓ 已完成' : '进行中') + '</span>' +
+        '</div>' +
+        '<div style="font-size:13px;color:var(--text);font-family:var(--font-serif);margin-bottom:2px">' + App.escapeHtml(run.mainTask.name) + '</div>' +
+        '<div style="font-size:9px;color:var(--text-3);font-family:var(--font-mono);margin-bottom:4px">' + (mtDone ? '完成' : (mtProg || '等待推进...')) + '</div>' +
+        '<div style="height:2px;background:var(--divider);border-radius:1px;overflow:hidden"><div style="height:100%;background:' + (mtDone ? 'var(--accent)' : 'var(--accent-dim)') + ';border-radius:1px;width:' + progPct + '%;transition:width .6s;box-shadow:' + (mtDone ? '0 0 6px var(--accent-dim)' : 'none') + '"></div></div>' +
       '</div>';
-      // Mini progress bar
-      var pct = mtDone ? 100 : (progress && progress !== run.mainTask.desc ? 40 : 15);
-      html += '<div style="height:2px;background:var(--divider);border-radius:1px;margin:4px 0 8px;overflow:hidden"><div style="height:100%;background:' + (mtDone ? 'var(--accent)' : 'var(--accent-dim)') + ';border-radius:1px;width:' + pct + '%;transition:width .5s"></div></div>';
     }
 
-    // Side tasks
+    // === Side Tasks ===
     if (run.sideTasks && run.sideTasks.length > 0) {
-      html += '<div class="expand-row"><span class="expand-label">◇ 支线任务</span><span></span></div>';
+      var doneCount = run.sideTasks.filter(function(t) { return run.completedTasks && run.completedTasks.indexOf(t.name) >= 0; }).length;
+      html += '<div style="font-size:8px;color:var(--text-3);font-family:var(--font-mono);letter-spacing:.04em;margin:8px 0 4px">◇ 支线任务 (' + doneCount + '/' + run.sideTasks.length + ')</div>';
       run.sideTasks.forEach(function(t) {
         var sDone = run.completedTasks && run.completedTasks.indexOf(t.name) >= 0;
-        var icon = sDone ? '<span style="color:var(--accent)">✓</span>' : '<span style="color:var(--text-3)">◇</span>';
-        html += '<div class="expand-row">' +
-          '<span style="font-size:10px;color:var(--text-2)">' + icon + ' ' + App.escapeHtml(t.name) + '</span>' +
-          '<span style="font-size:9px;color:' + (sDone ? 'var(--accent)' : 'var(--text-3)') + '">' + (sDone ? '完成' : '进行中') + '</span>' +
+        var sProg = run.taskLog && run.taskLog[t.name];
+        html += '<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;margin-bottom:2px;background:var(--surface);border:0.5px solid ' + (sDone ? 'var(--accent-dim)' : 'var(--divider)') + ';border-radius:var(--radius);opacity:' + (sDone ? '0.7' : '1') + '">' +
+          '<span style="font-size:9px;color:' + (sDone ? 'var(--accent)' : 'var(--text-3)') + '">' + (sDone ? '✓' : '◇') + '</span>' +
+          '<span style="flex:1;font-size:11px;color:' + (sDone ? 'var(--text-3)' : 'var(--text)') + (sDone ? ';text-decoration:line-through' : '') + '">' + App.escapeHtml(t.name) + '</span>' +
+          '<span style="font-size:8px;color:' + (sDone ? 'var(--accent)' : 'var(--text-3)') + ';font-family:var(--font-mono)">' + (sDone ? '完成' : (sProg || '进行中')) + '</span>' +
         '</div>';
       });
     }
 
-    // NPC affinity bars
+    // === NPC Affinity (compact) ===
     if (run.npcs && run.npcs.length > 0) {
-      html += '<div class="expand-row"><span class="expand-label">◇ 关键角色</span><span></span></div>';
+      html += '<div style="font-size:8px;color:var(--text-3);font-family:var(--font-mono);letter-spacing:.04em;margin:8px 0 4px">◇ 在场角色</div>';
       run.npcs.slice(0, 5).forEach(function(n) {
         var aff = n.affection || 0;
         var dotCls = aff >= 30 ? 'friendly' : (aff <= -20 ? 'hostile' : '');
