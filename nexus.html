@@ -569,6 +569,7 @@ var Store = {
         messages: [],
         privateChats: {},
         shop: { purchased: [] },
+        saveSlots: [],
         settings: { theme: 'dark', apiKey: '', model: 'gpt-4o-mini', baseUrl: '' }
       };
       this.save();
@@ -634,99 +635,173 @@ var Store = {
 
   exportJSON: function() { return JSON.stringify(this._db); },
   importJSON: function(json) { try { this._db = JSON.parse(json); this.save(); return true; } catch(e) { return false; } },
-  resetAll: function() { localStorage.removeItem(this._key); location.reload(); }
+  resetAll: function() { localStorage.removeItem(this._key); location.reload(); },
+
+  /* Save slots */
+  slots: function() { return this._db.saveSlots || []; },
+  createSlot: function(name) {
+    var slots = this._db.saveSlots || [];
+    var slot = { id:'slot_'+Date.now(), name:name||('存档 '+(slots.length+1)), timestamp:Date.now(), data:null };
+    slots.push(slot);
+    this.save();
+    return slot;
+  },
+  saveToSlot: function(idx) {
+    var slots = this._db.saveSlots || [];
+    if (!slots[idx]) return;
+    var clone = JSON.parse(JSON.stringify(this._db));
+    delete clone.saveSlots;
+    slots[idx].data = clone;
+    slots[idx].timestamp = Date.now();
+    this.save();
+  },
+  loadFromSlot: function(idx) {
+    var slots = this._db.saveSlots || [];
+    var slot = slots[idx];
+    if (!slot || !slot.data) return false;
+    var data = JSON.parse(JSON.stringify(slot.data));
+    data.saveSlots = slots;
+    for (var k in this._db) { if (this._db.hasOwnProperty(k)) delete this._db[k]; }
+    Object.assign(this._db, data);
+    this.save();
+    return true;
+  },
+  deleteSlot: function(idx) {
+    this._db.saveSlots.splice(idx, 1);
+    this.save();
+  }
 };
 
 /* ============================================================
    AI — API & MARKER ENGINE
    ============================================================ */
 var AI = {
-  /** OpenAI-compatible chat completions (non-streaming) */
-  call: function(messages, options) {
-    return new Promise(function(resolve, reject) {
-      var s = Store._db.settings;
-      var baseUrl = (s.baseUrl || 'https://api.openai.com').replace(/\/+$/, '');
-      var url = baseUrl + '/v1/chat/completions';
-      var body = {
-        model: s.model || 'gpt-4o-mini',
-        messages: messages,
-        temperature: (options && options.temperature) || 0.8,
-        max_tokens: (options && options.max_tokens) || 2048
-      };
-      fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (s.apiKey || '') },
-        body: JSON.stringify(body)
-      }).then(function(r) {
-        if (!r.ok) return r.text().then(function(t) { reject(new Error('API ' + r.status + ': ' + t)); });
-        return r.json();
-      }).then(function(data) {
-        if (data && data.choices && data.choices[0]) {
-          resolve(data.choices[0].message.content);
-        } else { reject(new Error('Empty response')); }
-      }).catch(reject);
-    });
-  },
-
-  /** Streaming chat completions */
-  streamCall: function(messages, onChunk, onDone, onError, options) {
+  /** OpenAI-compatible chat completions (non-streaming).
+   *  call(messages, options) → Promise<{ok,text}|{error,msg}> */
+  call: async function(messages, options) {
     var s = Store._db.settings;
-    var baseUrl = (s.baseUrl || 'https://api.openai.com').replace(/\/+$/, '');
-    var url = baseUrl + '/v1/chat/completions';
-    var body = {
-      model: s.model || 'gpt-4o-mini',
-      messages: messages,
-      temperature: (options && options.temperature) || 0.8,
-      max_tokens: (options && options.max_tokens) || 2048,
-      stream: true
-    };
-    fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (s.apiKey || '') },
-      body: JSON.stringify(body)
-    }).then(function(r) {
-      if (!r.ok) return r.text().then(function(t) { onError(new Error('API ' + r.status + ': ' + t)); });
-      var reader = r.body.getReader();
-      var decoder = new TextDecoder();
-      var buffer = '';
-      function pump() {
-        reader.read().then(function(result) {
-          if (result.done) { if (buffer.trim()) { var txt = AI._parseSSE(buffer); if (txt) onChunk(txt); } onDone(); return; }
-          buffer += decoder.decode(result.value, { stream: true });
-          var lines = buffer.split('\n');
-          buffer = lines.pop() || '';
-          for (var i = 0; i < lines.length; i++) {
-            var line = lines[i].trim();
-            if (line.startsWith('data: ')) {
-              var data = line.slice(6);
-              if (data === '[DONE]') continue;
-              try { var json = JSON.parse(data); var txt = json.choices[0].delta.content; if (txt) onChunk(txt); } catch(e) {}
-            }
-          }
-          pump();
-        }).catch(onError);
-      }
-      pump();
-    }).catch(onError);
+    var baseUrl = (options && options.baseUrl) || s.baseUrl;
+    var apiKey = (options && options.apiKey) || s.apiKey;
+    var model = (options && options.model) || s.model || 'gpt-4o-mini';
+
+    if (!baseUrl || !apiKey) {
+      Store.addMessage({ type:'system', content:'请先在设置页配置API接口地址和密钥。' });
+      App.renderMessages();
+      return { error:'nokey', msg:'未配置API' };
+    }
+
+    var url = baseUrl.replace(/\/+$/, '') + '/v1/chat/completions';
+
+    try {
+      var controller = new AbortController();
+      var timeoutId = setTimeout(function() { controller.abort(); }, 30000);
+      var res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json', 'Authorization':'Bearer ' + apiKey },
+        body: JSON.stringify({ model:model, messages:messages, temperature:(options && options.temperature) || 0.9, max_tokens:(options && options.maxTokens) || 1024 }),
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+      if (!res.ok) { var et = await res.text(); throw new Error(res.status + ' ' + et.slice(0,200)); }
+      var data = await res.json();
+      var content = data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
+      if (!content) return { error:'empty', msg:'AI 未返回有效内容' };
+      return { ok:true, text:content };
+    } catch(e) {
+      if (e.name === 'AbortError') return { error:'timeout', msg:'响应超时（30秒），请重试' };
+      if (e.message && e.message.match(/^\d{3}/)) return { error:'http', msg:'服务器错误：' + e.message };
+      return { error:'network', msg:'连接中断：' + e.message };
+    }
   },
 
-  _parseSSE: function(buffer) {
-    var result = '';
-    var lines = buffer.split('\n');
-    for (var i = 0; i < lines.length; i++) {
-      var line = lines[i].trim();
-      if (line.startsWith('data: ')) {
-        var data = line.slice(6);
-        if (data === '[DONE]') continue;
-        try { var json = JSON.parse(data); var txt = json.choices[0].delta.content; if (txt) result += txt; } catch(e) {}
-      }
+  /** Streaming chat completions.
+   *  streamCall(messages, onChunk, onDone, onError, options)
+   *  onChunk(delta, fullText), onDone(), onError({error,msg}) */
+  streamCall: async function(messages, onChunk, onDone, onError, options) {
+    var s = Store._db.settings;
+    var baseUrl = (options && options.baseUrl) || s.baseUrl;
+    var apiKey = (options && options.apiKey) || s.apiKey;
+    var model = (options && options.model) || s.model || 'gpt-4o-mini';
+
+    if (!baseUrl || !apiKey) {
+      if (onError) onError({ error:'nokey', msg:'请先在设置页配置API接口地址和密钥' });
+      return { error:'nokey', msg:'请先在设置页配置API接口地址和密钥' };
     }
-    return result || null;
+
+    var url = baseUrl.replace(/\/+$/, '') + '/v1/chat/completions';
+
+    try {
+      var controller = new AbortController();
+      var timeoutId = setTimeout(function() { controller.abort(); }, 60000);
+      var res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json', 'Authorization':'Bearer ' + apiKey },
+        body: JSON.stringify({ model:model, messages:messages, temperature:(options && options.temperature) || 0.9, max_tokens:(options && options.maxTokens) || 2048, stream:true }),
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+      if (!res.ok) { var et2 = await res.text(); throw new Error(res.status + ' ' + et2.slice(0,200)); }
+
+      var reader = res.body.getReader();
+      var decoder = new TextDecoder();
+      var fullText = '';
+      var buf = '';
+
+      while (true) {
+        var result = await reader.read();
+        if (result.done) break;
+        buf += decoder.decode(result.value, { stream:true });
+        var lines = buf.split('\n');
+        buf = lines.pop() || '';
+        for (var i = 0; i < lines.length; i++) {
+          var line = lines[i].trim();
+          if (!line || !line.startsWith('data:')) continue;
+          var dataStr = line.slice(5).trim();
+          if (dataStr === '[DONE]') continue;
+          try {
+            var json = JSON.parse(dataStr);
+            var delta = json.choices && json.choices[0] && json.choices[0].delta && json.choices[0].delta.content;
+            if (delta) {
+              fullText += delta;
+              if (onChunk) onChunk(delta, fullText);
+            }
+          } catch(e) {}
+        }
+      }
+      if (!fullText) { var e3 = { error:'empty', msg:'AI 未返回有效内容' }; if (onError) onError(e3); return e3; }
+      if (onDone) onDone();
+      return { ok:true, text:fullText };
+    } catch(e) {
+      var errObj;
+      if (e.name === 'AbortError') errObj = { error:'timeout', msg:'响应超时（60秒），请重试' };
+      else if (e.message && e.message.match(/^\d{3}/)) errObj = { error:'http', msg:'服务器错误：' + e.message };
+      else errObj = { error:'network', msg:'连接中断：' + e.message };
+      if (onError) onError(errObj);
+      return errObj;
+    }
+  },
+
+  /** Build context window messages from Store */
+  _buildMessages: function(systemPrompt, options) {
+    var msgs = [{ role:'system', content:systemPrompt }];
+    var recent = Store.messages().slice(-30);
+    recent.forEach(function(m) {
+      if (m.type === 'player') {
+        msgs.push({ role:'user', content: m.content });
+      } else if (m.type === 'narrative' || m.type === 'npc' || m.type === 'traveler') {
+        var c = m.content;
+        if ((m.type === 'npc' || m.type === 'traveler') && m.characterName) {
+          c = m.characterName + '\n  ' + c.replace(/\n/g, '\n  ');
+        }
+        msgs.push({ role:'assistant', content: c });
+      }
+    });
+    return msgs;
   },
 
   /** Test API connection */
   testConnection: function() {
-    return this.call([{ role:'user', content:'回复"OK"' }], { max_tokens: 10, temperature: 0 });
+    return this.call([{ role:'user', content:'回复"OK"' }], { maxTokens:10, temperature:0 });
   },
 
   /* ============================================================
@@ -1405,11 +1480,63 @@ var App = {
         '<div class="settings-row"><label>浅色主题</label><div class="theme-toggle" onclick="App.toggleTheme()"></div></div>' +
       '</div>' +
       '<div class="settings-group">' +
+        '<div class="settings-group-title">存档管理</div>' +
+        '<div id="save-slots-list" style="margin-bottom:8px">' + App._renderSaveSlotsHTML() + '</div>' +
+        '<button class="btn-accent" style="width:100%;" onclick="App._newSaveSlot()">+ 新建存档槽</button>' +
+      '</div>' +
+      '<div class="settings-group">' +
         '<div class="settings-group-title">数据</div>' +
         '<div class="settings-row"><label>导出存档</label><button class="btn-accent" onclick="App._exportData()">导出</button></div>' +
         '<div class="settings-row"><label>导入存档</label><button class="btn-accent" onclick="App._importData()">导入</button></div>' +
         '<div class="settings-row"><label>重置所有数据</label><button class="btn-accent" style="color:#8E2A2A;border-color:rgba(142,42,42,0.2);background:rgba(142,42,42,0.1)" onclick="App._resetAll()">重置</button></div>' +
       '</div>';
+  },
+
+  _renderSaveSlotsHTML: function() {
+    var slots = Store.slots();
+    if (slots.length === 0) return '<div style="font-size:10px;color:var(--text-3);padding:8px 0">暂无存档</div>';
+    return slots.map(function(s, i) {
+      var info = s.data ? (s.name + ' · ' + new Date(s.timestamp).toLocaleString('zh-CN')) : (s.name + ' · 空');
+      return '<div class="save-slot-card" style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;margin-bottom:4px;border-radius:8px;background:var(--surface);border:0.5px solid var(--divider);font-size:11px">' +
+        '<div style="flex:1;min-width:0"><span style="color:var(--text)">' + App.escapeHtml(info) + '</span></div>' +
+        '<div style="display:flex;gap:4px;flex-shrink:0;margin-left:8px">' +
+          '<button class="btn-sm" style="font-size:10px;padding:4px 8px" onclick="App._saveToSlot(' + i + ')">保存</button>' +
+          (s.data ? '<button class="btn-sm" style="font-size:10px;padding:4px 8px" onclick="App._loadSlot(' + i + ')">读取</button>' : '') +
+          '<button class="btn-sm btn-ghost" style="font-size:10px;padding:4px 8px;color:#8E2A2A" onclick="App._deleteSlot(' + i + ')">×</button>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+  },
+
+  _newSaveSlot: function() {
+    var name = prompt('存档名称：', '存档 ' + (Store.slots().length + 1));
+    if (!name) return;
+    Store.createSlot(name);
+    this.renderSettings();
+    this._showToast('存档槽已创建');
+  },
+
+  _saveToSlot: function(idx) {
+    Store.saveToSlot(idx);
+    this.renderSettings();
+    this._showToast('已保存到槽 ' + (idx + 1));
+  },
+
+  _loadSlot: function(idx) {
+    if (!confirm('读取存档将覆盖当前进度，确定继续？')) return;
+    if (Store.loadFromSlot(idx)) {
+      this._showToast('存档已读取，刷新页面...');
+      setTimeout(function() { location.reload(); }, 600);
+    } else {
+      this._showToast('读取失败');
+    }
+  },
+
+  _deleteSlot: function(idx) {
+    if (!confirm('删除此存档槽？')) return;
+    Store.deleteSlot(idx);
+    this.renderSettings();
+    this._showToast('存档槽已删除');
   },
 
   _saveSettings: function() {
@@ -1420,10 +1547,9 @@ var App = {
     Store.save();
     this._showToast('设置已保存。正在测试连接...');
     var self = this;
-    AI.testConnection().then(function() {
-      self._showToast('API连接成功');
-    }).catch(function(err) {
-      self._showToast('连接失败：' + (err.message || '未知错误'));
+    AI.testConnection().then(function(resp) {
+      if (resp && resp.ok) { self._showToast('API连接成功'); }
+      else { self._showToast('连接失败：' + (resp && resp.msg || '未知错误')); }
     });
   },
 
@@ -1494,10 +1620,11 @@ var App = {
     AI.call([
       { role: 'system', content: '你是NEXUS主神空间的副本生成器。你只返回严格的JSON，不包含任何其他文字。' },
       { role: 'user', content: prompt }
-    ], { temperature: 1.0, max_tokens: 1024 }).then(function(resp) {
+    ], { temperature: 1.0, maxTokens: 1024 }).then(function(resp) {
+      if (!resp || resp.error) { Store.addMessage({ type:'system', content:'副本生成失败：(API) ' + (resp && resp.msg || '未知错误') }); self.renderMessages(); return; }
       try {
         // Extract JSON
-        var jsonStr = resp.trim();
+        var jsonStr = resp.text.trim();
         var idx = jsonStr.indexOf('{');
         if (idx > 0) jsonStr = jsonStr.slice(idx);
         idx = jsonStr.lastIndexOf('}');
@@ -1625,14 +1752,12 @@ var App = {
       messages.push({ role: m.from === 'player' ? 'user' : 'assistant', content: m.content });
     });
 
-    AI.call(messages, { temperature: 0.9, max_tokens: 512 }).then(function(resp) {
-      chat.messages.push({ from: 'traveler', content: resp.trim(), time: Date.now() });
+    AI.call(messages, { temperature: 0.9, maxTokens: 512 }).then(function(resp) {
+      var reply = (resp && resp.ok) ? resp.text.trim() : '（信号中断...）';
+      chat.messages.push({ from: 'traveler', content: reply, time: Date.now() });
       Store.save();
       self._openTravelerChat(travelerId);
-    }).catch(function(err) {
-      chat.messages.push({ from: 'traveler', content: '（信号中断...）', time: Date.now() });
-      Store.save();
-      self._openTravelerChat(travelerId);
+    });
     });
   },
 
@@ -1661,17 +1786,55 @@ var App = {
     if (container) requestAnimationFrame(function() { container.scrollTop = container.scrollHeight; });
   },
 
-  formatContent: function(text) {
-    if (!text) return '';
-    return this.escapeHtml(text)
-      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\*(.+?)\*/g, '<em>$1</em>')
-      .replace(/\n/g, '<br>');
+  escapeHtml: function(str) {
+    var div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
   },
 
-  escapeHtml: function(str) {
-    if (!str) return '';
-    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  /** Format text for display: auto-detect （parenthetical actions）→ italic action-text */
+  formatContent: function(text) {
+    var self = this;
+    var lines = text.split('\n');
+    var result = lines.map(function(line) {
+      var html = '';
+      var re = /([（(][^）)]*[）)])/g;
+      var lastIdx = 0, m;
+      while ((m = re.exec(line)) !== null) {
+        if (m.index > lastIdx) html += self.escapeHtml(line.slice(lastIdx, m.index));
+        html += '<span class="action-text">' + self.escapeHtml(m[1]) + '</span>';
+        lastIdx = m.index + m[1].length;
+      }
+      if (lastIdx < line.length) html += self.escapeHtml(line.slice(lastIdx));
+      return html || self.escapeHtml(line);
+    });
+    return result.join('<br>');
+  },
+
+  /** Split text into actions (lines starting with （([【) and dialogue */
+  parseContent: function(text) {
+    var lines = text.split('\n');
+    var actions = [];
+    var dialogue = [];
+    lines.forEach(function(line) {
+      var trimmed = line.trim();
+      if (/^[（(【\[]/.test(trimmed)) { actions.push(trimmed); }
+      else if (trimmed) { dialogue.push(trimmed); }
+    });
+    return { actions:actions, dialogue:dialogue };
+  },
+
+  /** Format player message: inline action parentheses → action-inline */
+  formatUserMsg: function(text) {
+    var html = '';
+    var re = /([（(][^）)]*[）)])|([""][^""]*[""])|([^（(""']+)/g;
+    var m;
+    while ((m = re.exec(text)) !== null) {
+      if (m[1]) { html += '<span class="msg-action-inline">' + this.escapeHtml(m[1]) + '</span>'; }
+      else if (m[2]) { html += this.escapeHtml(m[2]); }
+      else if (m[3]) { html += this.escapeHtml(m[3]); }
+    }
+    return html || this.escapeHtml(text);
   },
 
   _showToast: function(msg) {
