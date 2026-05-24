@@ -1381,14 +1381,27 @@ var App = {
     this.bindEvents();
 
     // Show char creation BEFORE renderAll — prevents any render error from blocking it
+    // Also set a flag so renderMessages knows to show the creation prompt
     var p = Store.player();
-    var needCharCreation = !p.name;
-
-    if (needCharCreation) {
+    if (!p.name) {
+      this._needsCharCreation = true;
       try { this._showCharCreation(); } catch(e) { console.error('Char creation error:', e); }
     }
 
     try { this.renderAll(); } catch(e) { console.error('Render error:', e); }
+
+    // Fallback: if modal failed to open for any reason, show inline prompt in Story
+    if (!p.name) {
+      var msgs = document.getElementById('story-messages');
+      if (msgs && msgs.children.length === 0) {
+        msgs.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;text-align:center;gap:16px">' +
+          '<div style="font-family:var(--font-mono);font-size:10px;color:var(--accent);letter-spacing:.14em">NEXUS</div>' +
+          '<div style="font-size:18px;color:var(--text);letter-spacing:.04em;font-family:var(--font-serif)">穿越者创建</div>' +
+          '<div style="font-size:11px;color:var(--text-3);line-height:1.6">你尚未创建角色。<br>点击下方按钮塑造你在无尽书海中的化身。</div>' +
+          '<button class="btn-accent" style="margin-top:8px;padding:12px 32px;font-size:13px;border-radius:var(--radius)" onclick="App._showCharCreation()">创建角色</button>' +
+        '</div>';
+      }
+    }
   },
 
   applyTheme: function() {
@@ -1795,6 +1808,10 @@ var App = {
         '<div class="settings-group-title">存档管理</div>' +
         '<div id="save-slots-list" style="margin-bottom:8px">' + App._renderSaveSlotsHTML() + '</div>' +
         '<button class="btn-accent" style="width:100%;" onclick="App._newSaveSlot()">+ 新建存档槽</button>' +
+      '</div>' +
+      '<div class="settings-group">' +
+        '<div class="settings-group-title">角色</div>' +
+        '<div class="settings-row"><label>重新创建角色</label><button class="btn-accent" onclick="App._showCharCreation()">创建</button></div>' +
       '</div>' +
       '<div class="settings-group">' +
         '<div class="settings-group-title">数据</div>' +
@@ -2212,45 +2229,53 @@ var App = {
   },
 
   _showCharCreation: function() {
+    var p = Store.player();
+    var existingName = App.escapeHtml(p.name || '');
+    var existingApp = App.escapeHtml(p.appearance || '');
+    var existingBg = App.escapeHtml(p.background || '');
+    var existingTrait = p.personality || '';
+
     var html =
       '<div style="text-align:center;padding:8px 0 20px">' +
         '<div style="font-family:var(--font-mono);font-size:10px;color:var(--accent);letter-spacing:.14em;margin-bottom:6px">主神空间</div>' +
-        '<div style="font-size:20px;color:var(--text);letter-spacing:.04em;font-family:var(--font-serif);margin-bottom:4px">穿越者创建</div>' +
+        '<div style="font-size:20px;color:var(--text);letter-spacing:.04em;font-family:var(--font-serif);margin-bottom:4px">' + (p.name ? '重新创建角色' : '穿越者创建') + '</div>' +
         '<div style="font-size:10px;color:var(--text-3);margin-bottom:20px">塑造你在无尽书海中的化身</div>' +
       '</div>' +
 
       // Name
       '<div style="margin-bottom:14px">' +
         '<label style="display:block;font-size:10px;color:var(--text-3);letter-spacing:.08em;margin-bottom:6px;font-family:var(--font-mono)">姓名</label>' +
-        '<input type="text" id="cc-name" style="width:100%;background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius);padding:10px 14px;font-size:14px;color:var(--text);font-family:var(--font-ui)" placeholder="穿越者代号" autofocus>' +
+        '<input type="text" id="cc-name" value="' + existingName + '" style="width:100%;background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius);padding:10px 14px;font-size:14px;color:var(--text);font-family:var(--font-ui)" placeholder="穿越者代号" autofocus>' +
       '</div>' +
 
       // Appearance
       '<div style="margin-bottom:14px">' +
         '<label style="display:block;font-size:10px;color:var(--text-3);letter-spacing:.08em;margin-bottom:6px;font-family:var(--font-mono)">外貌（可选）</label>' +
-        '<textarea id="cc-appearance" style="width:100%;background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius);padding:10px 14px;font-size:13px;color:var(--text);font-family:var(--font-ui);resize:none;line-height:1.5" rows="2" placeholder="外貌特征的简短描述"></textarea>' +
+        '<textarea id="cc-appearance" style="width:100%;background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius);padding:10px 14px;font-size:13px;color:var(--text);font-family:var(--font-ui);resize:none;line-height:1.5" rows="2" placeholder="外貌特征的简短描述">' + existingApp + '</textarea>' +
       '</div>' +
 
       // Personality — radio group
       '<div style="margin-bottom:14px">' +
         '<label style="display:block;font-size:10px;color:var(--text-3);letter-spacing:.08em;margin-bottom:8px;font-family:var(--font-mono)">性格</label>' +
         '<div id="cc-personality-group" style="display:flex;flex-wrap:wrap;gap:8px">' +
-          ['活泼','冷静','温柔','毒舌','神秘'].map(function(trait, i) {
-            return '<label style="flex:1;min-width:60px;text-align:center;padding:8px 0;border-radius:var(--radius);font-size:12px;cursor:pointer;border:0.5px solid var(--border);color:var(--text-2);background:var(--surface);transition:all .2s;font-family:var(--font-ui)" class="cc-trait-btn" data-trait="' + trait + '">' + trait + '</label>';
+          ['活泼','冷静','温柔','毒舌','神秘'].map(function(trait) {
+            var sel = trait === existingTrait;
+            var style = sel ? 'border-color:var(--accent);color:var(--accent);background:var(--accent-dim)' : 'border-color:var(--border);color:var(--text-2);background:var(--surface)';
+            return '<label style="flex:1;min-width:60px;text-align:center;padding:8px 0;border-radius:var(--radius);font-size:12px;cursor:pointer;border:0.5px solid;' + style + ';transition:all .2s;font-family:var(--font-ui)" class="cc-trait-btn" data-trait="' + trait + '">' + trait + '</label>';
           }).join('') +
         '</div>' +
-        '<input type="hidden" id="cc-personality" value="">' +
+        '<input type="hidden" id="cc-personality" value="' + existingTrait + '">' +
       '</div>' +
 
       // Background
       '<div style="margin-bottom:20px">' +
         '<label style="display:block;font-size:10px;color:var(--text-3);letter-spacing:.08em;margin-bottom:6px;font-family:var(--font-mono)">穿越前背景（可选）</label>' +
-        '<textarea id="cc-background" style="width:100%;background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius);padding:10px 14px;font-size:13px;color:var(--text);font-family:var(--font-ui);resize:none;line-height:1.5" rows="2" placeholder="你在被主神召唤前是什么人"></textarea>' +
+        '<textarea id="cc-background" style="width:100%;background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius);padding:10px 14px;font-size:13px;color:var(--text);font-family:var(--font-ui);resize:none;line-height:1.5" rows="2" placeholder="你在被主神召唤前是什么人">' + existingBg + '</textarea>' +
       '</div>' +
 
       // Buttons
       '<div style="display:flex;gap:10px">' +
-        '<button class="btn-accent" style="flex:2;padding:11px 0;font-size:13px;border-radius:var(--radius)" onclick="App._saveCharCreation()">确认创建</button>' +
+        '<button class="btn-accent" style="flex:2;padding:11px 0;font-size:13px;border-radius:var(--radius)" onclick="App._saveCharCreation()">' + (p.name ? '保存修改' : '确认创建') + '</button>' +
         '<button style="flex:1;padding:11px 0;font-size:11px;border-radius:var(--radius);border:0.5px solid var(--border);color:var(--text-2);background:transparent;cursor:pointer;font-family:var(--font-mono);letter-spacing:.04em;transition:all .2s" onclick="App._aiRandomChar()" id="cc-ai-btn">AI随机</button>' +
       '</div>' +
       '<div style="text-align:center;font-size:10px;color:var(--text-3);margin-top:10px">或 <a style="color:var(--accent);cursor:pointer;text-decoration:underline;text-underline-offset:3px" onclick="App._randomChar()">本地随机生成</a></div>';
