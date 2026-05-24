@@ -602,17 +602,34 @@ var Store = {
     this.save();
   },
 
-  /** End current run, record result */
-  endRun: function(result) {
+  /** End current run, record result. success: true/false */
+  endRun: function(result, success) {
     if (this._db.currentRun) {
       this._db.currentRun.result = result;
       this._db.currentRun.endedAt = Date.now();
       this._db.runHistory.push(this._db.currentRun);
       var p = this._db.player;
-      p.completedRuns = (p.completedRuns || 0) + 1;
+      if (success) { p.completedRuns = (p.completedRuns || 0) + 1; }
+      p.level = Math.max(1, Math.floor(p.completedRuns / 3) + 1);
       this._db.currentRun = null;
       this.save();
     }
+  },
+
+  /** Check if player has a revive ticket in inventory */
+  hasReviveTicket: function() {
+    var inv = this._db.player.inventory || [];
+    return inv.some(function(item) { return item.name === '复活券'; });
+  },
+
+  /** Consume one revive ticket from inventory. Returns true if consumed. */
+  useReviveTicket: function() {
+    var inv = this._db.player.inventory || [];
+    var idx = inv.findIndex(function(item) { return item.name === '复活券'; });
+    if (idx < 0) return false;
+    inv.splice(idx, 1);
+    this.save();
+    return true;
   },
 
   /** Shop purchase tracking */
@@ -1323,11 +1340,14 @@ var App = {
     var panel = document.getElementById('space-panel-shop');
     panel.innerHTML = DEFAULT_SHOP.map(function(item) {
       var purchased = Store.hasPurchased(item.id);
-      var canBuy = !purchased || !item.consumable;
+      // Consumable: always re-buyable. Non-consumable: one-time purchase.
+      var canBuy = item.consumable || !purchased;
+      var owned = !item.consumable && purchased;
+      var ownedCount = item.consumable ? (Store.player().inventory || []).filter(function(inv) { return inv.shopItem === item.id; }).length : 0;
       return '<div class="shop-item">' +
         '<div>' +
           '<div class="shop-item-name">' + App.escapeHtml(item.name) + '</div>' +
-          '<div class="shop-item-desc">' + App.escapeHtml(item.desc) + '</div>' +
+          '<div class="shop-item-desc">' + App.escapeHtml(item.desc) + (ownedCount > 0 ? ' (持有' + ownedCount + ')' : '') + '</div>' +
         '</div>' +
         (canBuy
           ? '<div style="display:flex;align-items:center;gap:8px">' +
@@ -1344,24 +1364,32 @@ var App = {
     var item = DEFAULT_SHOP.find(function(i) { return i.id === itemId; });
     if (!item) return;
     var p = Store.player();
-    if (p.points < item.price) { alert('积分不足'); return; }
+    if (p.points < item.price) { alert('积分不足：需要 ' + item.price + '，当前 ' + (p.points||0)); return; }
+    if (!confirm('确认花费 ' + item.price + ' 积分购买「' + item.name + '」？')) return;
     p.points -= item.price;
     Store.purchaseItem(itemId);
+    // Add consumable items to inventory for in-run use
+    if (item.consumable) {
+      p.inventory.push({ id:'inv_'+Date.now(), name:item.name, desc:item.desc, time:Date.now(), shopItem:itemId });
+    }
     Store.save();
     this.renderSpace();
     this.renderStatus();
+    this._showToast('已购买「' + item.name + '」');
   },
 
   renderTravelerList: function() {
     var panel = document.getElementById('space-panel-travelers');
     var travelers = Store.travelers();
     panel.innerHTML = travelers.map(function(t) {
+      var chat = Store.getOrCreateChat(t.id);
+      var unreadDot = chat.hasUnread ? '<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--accent);margin-left:4px;flex-shrink:0;animation:corePulse 2s infinite"></span>' : '';
       return '<div class="traveler-card" onclick="App._openTravelerChat(\'' + t.id + '\')">' +
-        '<div class="msg-avatar" style="width:40px;height:40px;background:#12121C">' +
+        '<div class="msg-avatar" style="width:40px;height:40px;background:#12121C;position:relative">' +
           '<span class="msg-avatar-text">' + App.escapeHtml(t.name.charAt(0)) + '</span>' +
         '</div>' +
         '<div style="flex:1;min-width:0">' +
-          '<div class="traveler-card-name">' + App.escapeHtml(t.name) + ' <span style="font-size:9px;color:var(--text-3)">Lv.' + (t.level||1) + '</span></div>' +
+          '<div class="traveler-card-name">' + App.escapeHtml(t.name) + unreadDot + ' <span style="font-size:9px;color:var(--text-3)">Lv.' + (t.level||1) + '</span></div>' +
           '<div class="traveler-card-meta">' + App.escapeHtml(t.background || '') + '</div>' +
         '</div>' +
         '<div class="traveler-card-status' + (t.online ? '' : ' offline') + '">' + (t.online ? '在线' : '离线') + '</div>' +
@@ -1658,17 +1686,34 @@ var App = {
     var run = Store._db.currentRun;
     if (!run) return;
 
+    var isSuccess = result === '成功';
+
+    // On failure/death, check for revive ticket
+    if (!isSuccess && Store.hasReviveTicket()) {
+      var used = Store.useReviveTicket();
+      if (used) {
+        Store.addMessage({ type:'system', content:'【复活券使用】你感到一股力量将你拉回。复活券已消耗。副本继续。' });
+        Store.addMessage({ type:'narrative', content:'时间仿佛倒流了一瞬。你睁开眼，发现自己还活着——复活券的碎片在你手心化为灰烬。你被允许继续。但下次，你不会有这样的机会了。' });
+        this.renderMessages();
+        this.scrollToBottom();
+        this.renderStatus();
+        Store.save();
+        return; // Don't end the run — player revives
+      }
+    }
+
+    // Calculate reward
     var reward = run.baseReward || 0;
-    if (result === '成功') {
-      var diffMult = { '简单': 0.5, '普通': 1, '困难': 1.5, '极难': 2 };
+    if (isSuccess) {
+      var diffMult = { '简单':0.5, '普通':1, '困难':1.5, '极难':2 };
       reward = Math.floor(reward * (diffMult[run.difficulty] || 1));
     } else {
       reward = 0;
     }
 
     Store.player().points += reward;
-    Store.endRun(result);
-    Store.addMessage({ type: 'system', content: '【副本结束】结果：' + result + '。' + (reason || '') + ' 积分 +' + reward });
+    Store.endRun(result, isSuccess);
+    Store.addMessage({ type:'system', content:'【副本结束】结果：' + result + '。' + (reason||'') + (reward > 0 ? ' 积分 +' + reward : '') });
     this._updateRunBar();
     this.renderSpace();
     this.renderStatus();
@@ -1693,33 +1738,60 @@ var App = {
   _openTravelerChat: function(travelerId) {
     var t = Store.traveler(travelerId);
     if (!t) return;
-    // Simple chat in modal for now
     var self = this;
     var chat = Store.getOrCreateChat(travelerId);
-    var html = '<div style="padding:0 0 12px;border-bottom:0.5px solid var(--divider);margin-bottom:10px">' +
-      '<div style="font-size:14px;color:var(--text)">' + App.escapeHtml(t.name) + ' <span style="font-size:10px;color:var(--text-3)">Lv.' + (t.level||1) + '</span></div>' +
-      '<div style="font-size:10px;color:var(--text-3)">' + App.escapeHtml(t.background||'') + ' · ' + (t.online ? '在线' : '离线') + '</div>' +
+
+    // Mark unread as read
+    if (chat.hasUnread) { chat.hasUnread = false; Store.save(); }
+
+    // Header
+    var html = '<div style="display:flex;align-items:center;gap:12px;padding:0 0 14px;border-bottom:0.5px solid var(--divider);margin-bottom:12px">' +
+      '<div class="msg-avatar" style="width:40px;height:40px;background:#12121C">' +
+        '<span class="msg-avatar-text">' + App.escapeHtml(t.name.charAt(0)) + '</span>' +
+      '</div>' +
+      '<div style="flex:1;min-width:0">' +
+        '<div style="font-size:14px;color:var(--text);display:flex;align-items:center;gap:6px">' +
+          App.escapeHtml(t.name) +
+          '<span style="font-size:10px;color:var(--text-3)">Lv.' + (t.level||1) + '</span>' +
+          (t.online ? '<span style="width:5px;height:5px;border-radius:50%;background:var(--accent);flex-shrink:0" title="在线"></span>' : '<span style="width:5px;height:5px;border-radius:50%;background:var(--text-3);flex-shrink:0" title="离线"></span>') +
+        '</div>' +
+        '<div style="font-size:10px;color:var(--text-3);margin-top:2px">' + App.escapeHtml(t.background||'穿越者') + '</div>' +
+      '</div>' +
     '</div>';
-    html += '<div id="traveler-chat-msgs" style="max-height:300px;overflow-y:auto;margin-bottom:12px">';
+
+    // Messages
+    html += '<div id="traveler-chat-msgs" style="max-height:320px;overflow-y:auto;margin-bottom:12px;display:flex;flex-direction:column;gap:8px">';
     if (chat.messages.length === 0) {
-      html += '<div style="text-align:center;color:var(--text-3);padding:20px 0;font-size:11px">开始对话</div>';
+      html += '<div style="text-align:center;color:var(--text-3);padding:30px 0;font-size:11px">暂无消息，开始对话吧</div>';
     } else {
       chat.messages.forEach(function(m) {
-        var side = m.from === 'player' ? 'user' : 'other';
-        html += '<div style="margin-bottom:8px;display:flex;justify-content:' + (side === 'user' ? 'flex-end' : 'flex-start') + '">' +
-          '<div style="max-width:80%;padding:8px 12px;border-radius:' + (side === 'user' ? '12px 12px 2px 12px' : '12px 12px 12px 2px') + ';background:' + (side === 'user' ? 'var(--bubble-user)' : 'var(--bubble-npc)') + ';font-size:12px;line-height:1.5">' + App.escapeHtml(m.content) + '</div>' +
+        var isPlayer = m.from === 'player';
+        var bubbleCls = isPlayer ? 'msg-user-bubble' : 'msg-traveler-bubble';
+        var rowStyle = 'display:flex;justify-content:' + (isPlayer ? 'flex-end' : 'flex-start');
+        html += '<div style="' + rowStyle + '">' +
+          '<div class="' + bubbleCls + '" style="max-width:80%">' +
+            '<div class="msg-content">' + App.formatContent(m.content) + '</div>' +
+          '</div>' +
         '</div>';
       });
     }
     html += '</div>';
+
+    // Input
     html += '<div style="display:flex;gap:8px">' +
-      '<input id="traveler-chat-input" style="flex:1;background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius);padding:8px 12px;font-size:12px;color:var(--text)" placeholder="发送消息...">' +
+      '<input id="traveler-chat-input" style="flex:1;background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius);padding:8px 12px;font-size:12px;color:var(--text)" placeholder="发送消息..." onkeydown="if(event.key===\'Enter\'&&!event.shiftKey){event.preventDefault();App._sendTravelerMsg(\''+travelerId+'\')}">' +
       '<button class="btn-accent" onclick="App._sendTravelerMsg(\'' + travelerId + '\')">发送</button>' +
     '</div>';
 
     document.getElementById('modal-sheet-inner').innerHTML = html;
     document.getElementById('modal-sheet').classList.add('open');
     this._bindSheetClose();
+
+    // Scroll chat to bottom
+    setTimeout(function() {
+      var msgsEl = document.getElementById('traveler-chat-msgs');
+      if (msgsEl) msgsEl.scrollTop = msgsEl.scrollHeight;
+    }, 100);
   },
 
   _sendTravelerMsg: function(travelerId) {
