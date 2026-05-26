@@ -67,7 +67,7 @@ ul,ol{list-style:none}a{color:inherit;text-decoration:none}
   flex:1;overflow-y:auto;overflow-x:hidden;
   display:none;flex-direction:column;
   -webkit-overflow-scrolling:touch;
-  padding-bottom:200px;
+  padding-bottom:120px;
 }
 .page.active{display:flex}
 
@@ -261,7 +261,7 @@ ul,ol{list-style:none}a{color:inherit;text-decoration:none}
    STORY PAGE — MESSAGE LAYOUT
    ============================================================ */
 #page-story{padding-top:calc(10px + var(--sat))}
-#story-messages{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;padding:8px 14px 140px;display:flex;flex-direction:column;gap:14px;scroll-behavior:smooth}
+#story-messages{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;padding:8px 14px 16px;display:flex;flex-direction:column;gap:14px;scroll-behavior:smooth}
 
 /* Message entry animation */
 .msg{animation:msgIn .35s cubic-bezier(.2,.9,.3,1)}
@@ -398,7 +398,7 @@ ul,ol{list-style:none}a{color:inherit;text-decoration:none}
 
 /* ---- Telemetry Toast ---- */
 .telemetry-toast{
-  position:fixed;bottom:140px;left:50%;transform:translateX(-50%) translateY(20px);z-index:50;
+  position:fixed;bottom:110px;left:50%;transform:translateX(-50%) translateY(20px);z-index:50;
   background:rgba(14,14,22,.95);border:0.5px solid var(--border);border-left:2px solid var(--accent);
   border-radius:var(--radius);padding:8px 14px;display:flex;align-items:center;gap:10px;
   opacity:0;pointer-events:none;transition:all .35s cubic-bezier(.2,.9,.3,1);
@@ -503,43 +503,681 @@ ul,ol{list-style:none}a{color:inherit;text-decoration:none}
 .task-item.complete .task-item-title{text-decoration:line-through;color:var(--text-3)}
 
 /* ============================================================
-   SETTINGS PAGE
+   NEXUS 设置页 UI — 完整 CSS 样式
+   色调：深色 #06060B / 青色 accent #00A8A8
+   风格：高级冷冽 + 微赛博
    ============================================================ */
-#page-settings{padding:calc(14px + var(--sat)) 14px 20px}
-.settings-group{margin-bottom:20px}
-.settings-group-title{
-  font-family:var(--font-mono);font-size:9px;color:var(--text-3);
-  letter-spacing:.1em;padding:0 0 8px 0;
+
+/* ============================================================
+   1. 设置页容器
+   ============================================================ */
+#page-settings {
+  padding: calc(14px + var(--sat)) 16px 20px;
 }
-.settings-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0}
-.settings-row label{font-size:12px;color:var(--text)}
-.settings-row input[type="text"],.settings-row input[type="password"]{
-  background:var(--surface);border:0.5px solid var(--border);
-  border-radius:var(--radius);padding:8px 12px;font-size:12px;
-  width:200px;color:var(--text);font-family:var(--font-mono);
-  text-align:right;
+
+/* ============================================================
+   2. 分区标题
+   ============================================================ */
+.settings-group {
+  margin-bottom: 18px;
 }
-.settings-row input::placeholder{color:var(--text-3)}
-.theme-toggle{
-  width:44px;height:24px;border-radius:12px;
-  background:var(--surface);border:0.5px solid var(--border);
-  cursor:pointer;position:relative;transition:all .3s;
+
+.settings-group-title {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--accent);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 0 0 8px 0;
+  margin-bottom: 10px;
+  border-bottom: 1px solid rgba(0, 168, 168, 0.15);
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
-.theme-toggle::after{
-  content:'';position:absolute;top:3px;left:3px;
-  width:18px;height:18px;border-radius:50%;
-  background:var(--accent);transition:all .3s;
+
+/* 标题左侧小菱形标记 */
+.settings-group-title::before {
+  content: '◆';
+  font-size: 6px;
+  color: var(--accent);
+  opacity: 0.7;
 }
-body.light .theme-toggle{background:var(--divider)}
-body.light .theme-toggle::after{left:23px}
-.btn-accent{
-  padding:8px 20px;border-radius:var(--radius);
-  background:var(--accent-dim);color:var(--accent);
-  border:0.5px solid rgba(0,168,168,0.2);
-  font-family:var(--font-mono);font-size:11px;letter-spacing:.04em;
-  cursor:pointer;transition:all .2s;
+
+/* ============================================================
+   3. 设置行 — 通用
+   ============================================================ */
+.settings-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 9px 0;
+  min-height: 40px;
 }
-.btn-accent:hover{background:var(--accent);color:var(--bg)}
+
+.settings-row + .settings-row {
+  border-top: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.settings-row label {
+  font-size: 12px;
+  color: var(--text);
+  letter-spacing: 0.03em;
+  flex-shrink: 0;
+  margin-right: 12px;
+  font-family: var(--font-ui);
+}
+
+.settings-row .label-hint {
+  display: block;
+  font-size: 9px;
+  color: var(--text-3);
+  letter-spacing: 0.04em;
+  margin-top: 2px;
+  font-weight: 400;
+  font-family: var(--font-mono);
+}
+
+/* 标签文字区域（用于带提示的主标签） */
+.settings-label-group {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  margin-right: 12px;
+}
+
+.settings-label-group .main-label {
+  font-size: 12px;
+  color: var(--text);
+  letter-spacing: 0.03em;
+}
+
+.settings-label-group .sub-label {
+  font-size: 9px;
+  color: var(--text-3);
+  letter-spacing: 0.04em;
+  font-family: var(--font-mono);
+  margin-top: 1px;
+}
+
+/* ============================================================
+   4. 输入框 — 深色半透明 / focus 青色发光
+   ============================================================ */
+.settings-row input[type="text"],
+.settings-row input[type="password"],
+.settings-row input[type="url"] {
+  background: rgba(14, 14, 22, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  letter-spacing: 0.04em;
+  color: var(--text);
+  text-align: right;
+  width: 180px;
+  transition: all 0.25s ease;
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.settings-row input::placeholder {
+  color: var(--text-3);
+  opacity: 0.5;
+  font-style: italic;
+}
+
+/* Focus 态：青色边框 + 微发光 */
+.settings-row input:focus {
+  border-color: rgba(0, 168, 168, 0.5);
+  box-shadow: 0 0 0 1px rgba(0, 168, 168, 0.1),
+              0 0 12px rgba(0, 168, 168, 0.08);
+  background: rgba(14, 14, 22, 0.8);
+}
+
+/* 全宽输入框变体（用于长文本如 Base URL） */
+.settings-row input.full-width {
+  width: 100%;
+  text-align: left;
+}
+
+.settings-row-full {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+}
+
+.settings-row-full label {
+  margin-right: 0;
+}
+
+/* ============================================================
+   5. 按钮 — 保存并测试连接
+   ============================================================ */
+.btn-accent {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px 20px;
+  border-radius: 6px;
+  background: linear-gradient(135deg,
+    rgba(0, 168, 168, 0.25) 0%,
+    rgba(0, 168, 168, 0.12) 100%);
+  color: var(--accent);
+  border: 1px solid rgba(0, 168, 168, 0.25);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* 按钮内微光 */
+.btn-accent::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg,
+    transparent,
+    rgba(0, 168, 168, 0.15),
+    transparent);
+  transition: left 0.5s ease;
+}
+
+.btn-accent:hover::before {
+  left: 100%;
+}
+
+.btn-accent:hover {
+  background: linear-gradient(135deg,
+    rgba(0, 168, 168, 0.4) 0%,
+    rgba(0, 168, 168, 0.2) 100%);
+  border-color: rgba(0, 168, 168, 0.5);
+  box-shadow: 0 0 20px rgba(0, 168, 168, 0.2),
+              0 0 40px rgba(0, 168, 168, 0.06);
+  color: #00D4D4;
+  transform: translateY(-1px);
+}
+
+.btn-accent:active {
+  transform: translateY(0);
+  box-shadow: 0 0 8px rgba(0, 168, 168, 0.3);
+  transition: all 0.1s ease;
+}
+
+/* 次要按钮 */
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 16px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-2);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: var(--text);
+}
+
+.btn-secondary:active {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* 危险按钮 */
+.btn-danger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 16px;
+  border-radius: 6px;
+  background: rgba(200, 60, 60, 0.08);
+  color: #C86060;
+  border: 1px solid rgba(200, 60, 60, 0.2);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.btn-danger:hover {
+  background: rgba(200, 60, 60, 0.15);
+  border-color: rgba(200, 60, 60, 0.35);
+  box-shadow: 0 0 16px rgba(200, 60, 60, 0.1);
+}
+
+.btn-danger:active {
+  background: rgba(200, 60, 60, 0.2);
+}
+
+/* 按钮行（多个按钮横排） */
+.settings-actions {
+  display: flex;
+  gap: 8px;
+  padding: 10px 0;
+  flex-wrap: wrap;
+}
+
+/* ============================================================
+   6. 开关 Toggle — 青色激活态
+   ============================================================ */
+.theme-toggle,
+.toggle-switch {
+  width: 44px;
+  height: 24px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+  position: relative;
+  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
+}
+
+/* 开关圆点 */
+.theme-toggle::after,
+.toggle-switch::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--text-2);
+  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+/* 激活态 — 青色背景 */
+body.light .theme-toggle,
+.toggle-switch.active {
+  background: rgba(0, 168, 168, 0.2);
+  border-color: rgba(0, 168, 168, 0.4);
+}
+
+body.light .theme-toggle::after,
+.toggle-switch.active::after {
+  left: 23px;
+  background: var(--accent);
+  box-shadow: 0 0 10px rgba(0, 168, 168, 0.5),
+              0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+/* 激活时的微光环 */
+.toggle-switch.active {
+  box-shadow: 0 0 12px rgba(0, 168, 168, 0.15);
+}
+
+/* 禁用态 */
+.theme-toggle:disabled,
+.toggle-switch:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* ============================================================
+   7. 连接状态指示器
+   ============================================================ */
+.connection-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  padding: 3px 8px;
+  border-radius: 10px;
+  transition: all 0.3s ease;
+}
+
+.connection-status .status-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* 未测试 */
+.connection-status.untested {
+  color: var(--text-3);
+  background: rgba(255, 255, 255, 0.02);
+}
+.connection-status.untested .status-dot {
+  background: var(--text-3);
+}
+
+/* 连接中 */
+.connection-status.testing {
+  color: var(--accent);
+  background: rgba(0, 168, 168, 0.08);
+}
+.connection-status.testing .status-dot {
+  background: var(--accent);
+  animation: status-pulse 0.8s ease-in-out infinite;
+}
+
+/* 连接成功 */
+.connection-status.success {
+  color: #4ADE80;
+  background: rgba(74, 222, 128, 0.08);
+}
+.connection-status.success .status-dot {
+  background: #4ADE80;
+  box-shadow: 0 0 6px rgba(74, 222, 128, 0.4);
+}
+
+/* 连接失败 */
+.connection-status.error {
+  color: #F87171;
+  background: rgba(248, 113, 113, 0.08);
+}
+.connection-status.error .status-dot {
+  background: #F87171;
+  box-shadow: 0 0 6px rgba(248, 113, 113, 0.4);
+}
+
+@keyframes status-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+
+/* ============================================================
+   8. 存档管理区域
+   ============================================================ */
+.save-slots {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.save-slot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: rgba(14, 14, 22, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.save-slot:hover {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(14, 14, 22, 0.6);
+}
+
+.save-slot:active {
+  background: rgba(0, 168, 168, 0.05);
+  border-color: rgba(0, 168, 168, 0.2);
+}
+
+.save-slot .slot-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.save-slot .slot-name {
+  font-size: 12px;
+  color: var(--text);
+  letter-spacing: 0.03em;
+  font-family: var(--font-ui);
+}
+
+.save-slot .slot-meta {
+  font-size: 9px;
+  color: var(--text-3);
+  font-family: var(--font-mono);
+  letter-spacing: 0.05em;
+}
+
+.save-slot .slot-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.save-slot .slot-action-btn {
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 9px;
+  font-family: var(--font-mono);
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-2);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.save-slot .slot-action-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+}
+
+.save-slot .slot-action-btn.danger {
+  color: #C86060;
+  border-color: rgba(200, 60, 60, 0.15);
+}
+
+.save-slot .slot-action-btn.danger:hover {
+  background: rgba(200, 60, 60, 0.1);
+  border-color: rgba(200, 60, 60, 0.3);
+}
+
+/* ============================================================
+   9. 角色信息卡片
+   ============================================================ */
+.char-info-card {
+  background: rgba(14, 14, 22, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-family: var(--font-mono);
+}
+
+.char-info-card .char-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px 0;
+  font-size: 11px;
+}
+
+.char-info-card .char-row + .char-row {
+  border-top: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.char-info-card .char-label {
+  color: var(--text-3);
+  letter-spacing: 0.06em;
+  font-size: 10px;
+}
+
+.char-info-card .char-value {
+  color: var(--text);
+  letter-spacing: 0.04em;
+  text-align: right;
+}
+
+.char-info-card .char-value.accent {
+  color: var(--accent);
+}
+
+/* ============================================================
+   10. 分区之间的分割线
+   ============================================================ */
+.settings-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.04);
+  margin: 4px 0 14px;
+  border: none;
+}
+
+/* ============================================================
+   11. 提示文字与辅助信息
+   ============================================================ */
+.settings-hint {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-3);
+  letter-spacing: 0.05em;
+  padding: 4px 0 0;
+  line-height: 1.5;
+  opacity: 0.7;
+}
+
+.settings-hint .warning {
+  color: #C86060;
+}
+
+/* ============================================================
+   12. API 测试结果显示
+   ============================================================ */
+.api-test-result {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  padding: 8px 12px;
+  border-radius: 6px;
+  margin-top: 6px;
+  transition: all 0.3s ease;
+}
+
+.api-test-result.success {
+  background: rgba(74, 222, 128, 0.06);
+  border: 1px solid rgba(74, 222, 128, 0.15);
+  color: #4ADE80;
+}
+
+.api-test-result.error {
+  background: rgba(248, 113, 113, 0.06);
+  border: 1px solid rgba(248, 113, 113, 0.15);
+  color: #F87171;
+}
+
+.api-test-result.testing {
+  background: rgba(0, 168, 168, 0.06);
+  border: 1px solid rgba(0, 168, 168, 0.15);
+  color: var(--accent);
+}
+
+/* ============================================================
+   13. 响应式微调
+   ============================================================ */
+@media (max-width: 380px) {
+  #page-settings {
+    padding: calc(10px + var(--sat)) 12px 20px;
+  }
+
+  .settings-row input[type="text"],
+  .settings-row input[type="password"],
+  .settings-row input[type="url"] {
+    width: 140px;
+    font-size: 10px;
+  }
+
+  .btn-accent {
+    padding: 7px 14px;
+    font-size: 9px;
+  }
+}
+
+/* ============================================================
+   14. 设置入口列表
+   ============================================================ */
+.settings-entry-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.settings-entry-btn {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 0;
+  cursor: pointer;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  font-size: 13px;
+  color: var(--text);
+  letter-spacing: 0.03em;
+  transition: all 0.2s ease;
+  font-family: var(--font-ui);
+}
+
+.settings-entry-btn:active {
+  color: var(--accent);
+  background: rgba(0, 168, 168, 0.03);
+}
+
+.settings-entry-btn .entry-arrow {
+  font-size: 11px;
+  color: var(--text-3);
+  font-family: var(--font-mono);
+}
+
+/* ============================================================
+   SETTINGS SUB-PAGES
+   ============================================================ */
+#page-settings-sub {
+  padding: 0;
+  overflow-y: auto;
+}
+.settings-sub-header {
+  display: flex;
+  align-items: center;
+  padding: calc(14px + var(--sat)) 16px 12px;
+  border-bottom: 1px solid rgba(0, 168, 168, 0.15);
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+  z-index: 10;
+  gap: 10px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.settings-sub-back {
+  font-size: 15px;
+  color: var(--accent);
+  cursor: pointer;
+  padding: 4px 6px 4px 0;
+  line-height: 1;
+  font-family: var(--font-mono);
+  flex-shrink: 0;
+}
+.settings-sub-back:active { opacity: 0.6; }
+.settings-sub-title {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--accent);
+  letter-spacing: 0.1em;
+}
+.settings-sub-body {
+  padding: 20px 16px calc(24px + var(--sab));
+}
 
 /* ============================================================
    MODALS & OVERLAYS
@@ -761,6 +1399,11 @@ body.light .msg-action-line{color:#888}
   <!-- Settings Page -->
   <div id="page-settings" class="page">
     <div id="settings-content"></div>
+  </div>
+
+  <!-- Settings Sub-Page -->
+  <div id="page-settings-sub" class="page">
+    <div id="settings-sub-content"></div>
   </div>
 </div>
 
@@ -1242,7 +1885,25 @@ var Store = {
 
   exportJSON: function() { return JSON.stringify(this._db); },
   importJSON: function(json) { try { this._db = JSON.parse(json); this.save(); return true; } catch(e) { return false; } },
-  resetAll: function() { localStorage.removeItem(this._key); location.reload(); },
+  resetAll: function() {
+    var settings = this._db && this._db.settings ? JSON.parse(JSON.stringify(this._db.settings)) : { theme:'dark', apiKey:'', model:'gpt-4o-mini', baseUrl:'' };
+    localStorage.removeItem(this._key);
+    this._db = {
+      version: 1,
+      player: { name:'', gender:'female', appearance:'', background:'', personality:'', points:0, level:1, completedRuns:0, inventory:[], companions:[] },
+      currentRun: null,
+      runHistory: [],
+      travelers: JSON.parse(JSON.stringify(DEFAULT_TRAVELERS)),
+      messages: [],
+      privateChats: {},
+      shop: { purchased:[] },
+      importantNPCs: {},
+      saveSlots: [],
+      settings: settings
+    };
+    this.save();
+    location.reload();
+  },
 
   /* Save slots */
   slots: function() { return this._db.saveSlots || []; },
@@ -2027,7 +2688,7 @@ var App = {
     var needCharCreation = !p.name;
 
     if (needCharCreation) {
-      try { this._showCharCreation(); } catch(e) { console.error('Char creation error:', e); }
+      try { this._openCharModal(); } catch(e) { console.error('Char creation error:', e); }
     }
 
     try { this.renderAll(); } catch(e) { console.error('Render error:', e); }
@@ -2632,98 +3293,364 @@ var App = {
   },
 
   /* ============================================================
-     RENDER — SETTINGS
+     SETTINGS SUB-PAGE HELPERS
      ============================================================ */
-  renderSettings: function() {
-    var s = Store._db.settings;
-    var el = document.getElementById('settings-content');
-    el.innerHTML =
-      '<div class="settings-group">' +
-        '<div class="settings-group-title">API 配置</div>' +
-        '<div class="settings-row"><label>Base URL</label><input type="text" id="set-base-url" value="' + App.escapeHtml(s.baseUrl || '') + '" placeholder="https://api.openai.com"></div>' +
-        '<div class="settings-row"><label>API Key</label><input type="password" id="set-api-key" value="' + App.escapeHtml(s.apiKey || '') + '" placeholder="sk-..."></div>' +
-        '<div class="settings-row"><label>Model</label><input type="text" id="set-model" value="' + App.escapeHtml(s.model || '') + '" placeholder="gpt-4o-mini"></div>' +
-        '<button class="btn-accent" style="width:100%;margin-top:8px" onclick="App._saveSettings()">保存并测试连接</button>' +
+  _openSettingsSub: function(title, html) {
+    document.getElementById('settings-sub-content').innerHTML =
+      '<div class="settings-sub-header">' +
+        '<span class="settings-sub-back" onclick="App._backFromSettingsSub()">←</span>' +
+        '<span class="settings-sub-title">◆ ' + title + '</span>' +
       '</div>' +
-      '<div class="settings-group">' +
-        '<div class="settings-group-title">外观</div>' +
-        '<div class="settings-row"><label>浅色主题</label><div class="theme-toggle" onclick="App.toggleTheme()"></div></div>' +
-      '</div>' +
-      '<div class="settings-group">' +
-        '<div class="settings-group-title">存档管理</div>' +
-        '<div id="save-slots-list" style="margin-bottom:8px">' + App._renderSaveSlotsHTML() + '</div>' +
-        '<button class="btn-accent" style="width:100%;" onclick="App._newSaveSlot()">+ 新建存档槽</button>' +
-      '</div>' +
-      '<div class="settings-group">' +
-        '<div class="settings-group-title">角色</div>' +
-        '<div class="settings-row"><label>重新创建角色</label><button class="btn-accent" onclick="App._showCharCreation()">创建</button></div>' +
-      '</div>' +
-      '<div class="settings-group">' +
-        '<div class="settings-group-title">数据</div>' +
-        '<div class="settings-row"><label>导出存档</label><button class="btn-accent" onclick="App._exportData()">导出</button></div>' +
-        '<div class="settings-row"><label>导入存档</label><button class="btn-accent" onclick="App._importData()">导入</button></div>' +
-        '<div class="settings-row"><label>重置所有数据</label><button class="btn-accent" style="color:#8E2A2A;border-color:rgba(142,42,42,0.2);background:rgba(142,42,42,0.1)" onclick="App._resetAll()">重置</button></div>' +
-      '</div>';
+      '<div class="settings-sub-body">' + html + '</div>';
+    this.navigateTo('settings-sub');
   },
 
-  _renderSaveSlotsHTML: function() {
-    var slots = Store.slots();
-    if (slots.length === 0) return '<div style="font-size:10px;color:var(--text-3);padding:8px 0">暂无存档</div>';
-    return slots.map(function(s, i) {
-      var info = s.data ? (s.name + ' · ' + new Date(s.timestamp).toLocaleString('zh-CN')) : (s.name + ' · 空');
-      return '<div class="save-slot-card" style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;margin-bottom:4px;border-radius:8px;background:var(--surface);border:0.5px solid var(--divider);font-size:11px">' +
-        '<div style="flex:1;min-width:0"><span style="color:var(--text)">' + App.escapeHtml(info) + '</span></div>' +
-        '<div style="display:flex;gap:4px;flex-shrink:0;margin-left:8px">' +
-          '<button class="btn-sm" style="font-size:10px;padding:4px 8px" onclick="App._saveToSlot(' + i + ')">保存</button>' +
-          (s.data ? '<button class="btn-sm" style="font-size:10px;padding:4px 8px" onclick="App._loadSlot(' + i + ')">读取</button>' : '') +
-          '<button class="btn-sm btn-ghost" style="font-size:10px;padding:4px 8px;color:#8E2A2A" onclick="App._deleteSlot(' + i + ')">×</button>' +
-        '</div>' +
-      '</div>';
-    }).join('');
+  _refreshSettingsSub: function(title, html) {
+    document.getElementById('settings-sub-content').innerHTML =
+      '<div class="settings-sub-header">' +
+        '<span class="settings-sub-back" onclick="App._backFromSettingsSub()">←</span>' +
+        '<span class="settings-sub-title">◆ ' + title + '</span>' +
+      '</div>' +
+      '<div class="settings-sub-body">' + html + '</div>';
   },
 
-  _newSaveSlot: function() {
-    var name = prompt('存档名称：', '存档 ' + (Store.slots().length + 1));
-    if (!name) return;
-    Store.createSlot(name);
+  _backFromSettingsSub: function() {
     this.renderSettings();
-    this._showToast('存档槽已创建');
+    this.navigateTo('settings');
   },
+ 
+	  /* ============================================================
+	     RENDER — SETTINGS
+	     ============================================================ */
+	  renderSettings: function() {
+	    var el = document.getElementById('settings-content');
+	    el.innerHTML =
+	      '<div class="settings-group">' +
+	        '<div class="settings-group-title">' + '设置' + '</div>' +
+	        '<div class="settings-entry-list">' +
+	          '<div class="settings-entry-btn" onclick="App._openCharModal()"><span>' + '我的角色' + '</span><span class="entry-arrow">▸</span></div>' +
+	          '<div class="settings-entry-btn" onclick="App._openTravelersModal()"><span>' + '穿越者伙伴' + '</span><span class="entry-arrow">▸</span></div>' +
+	          '<div class="settings-entry-btn" onclick="App._openSavesModal()"><span>' + '存档管理' + '</span><span class="entry-arrow">▸</span></div>' +
+	          '<div class="settings-entry-btn" onclick="App._openApiModal()"><span>API' + '管理' + '</span><span class="entry-arrow">▸</span></div>' +
+	          '<div class="settings-entry-btn" onclick="App._openDataModal()"><span>' + '数据' + '</span><span class="entry-arrow">▸</span></div>' +
+	        '</div>' +
+	      '</div>' +
+	      '<div class="settings-group">' +
+	        '<div class="settings-group-title">' + '外观' + '</div>' +
+	        '<div class="settings-row"><label>' + '浅色主题' + '</label><div class="theme-toggle" onclick="App.toggleTheme()"></div></div>' +
+	      '</div>';
+	  },
 
-  _saveToSlot: function(idx) {
-    Store.saveToSlot(idx);
-    this.renderSettings();
-    this._showToast('已保存到槽 ' + (idx + 1));
-  },
+	  _renderSaveSlotsHTML: function() {
+	    var slots = Store.slots();
+	    if (slots.length === 0) return '<div class="settings-hint">' + '暂无存档' + '</div>';
+	    return slots.map(function(s, i) {
+	      var name = s.name || ('' + '存档 ' + (i + 1));
+	      var meta = s.data ? new Date(s.timestamp).toLocaleString('zh-CN') : '' + '空';
+	      return '<div class="save-slot">' +
+	        '<div class="slot-info">' +
+	          '<div class="slot-name">' + App.escapeHtml(name) + '</div>' +
+	          '<div class="slot-meta">' + App.escapeHtml(meta) + '</div>' +
+	        '</div>' +
+	        '<div class="slot-actions">' +
+	          '<button class="slot-action-btn" onclick="App._saveToSlot(' + i + ')">' + '保存' + '</button>' +
+	          (s.data ? '<button class="slot-action-btn" onclick="App._loadSlot(' + i + ')">' + '读取' + '</button>' : '') +
+	          '<button class="slot-action-btn danger" onclick="App._deleteSlot(' + i + ')">' + '删除' + '</button>' +
+	        '</div>' +
+	      '</div>';
+	    }).join('');
+	  },
 
-  _loadSlot: function(idx) {
-    if (!confirm('读取存档将覆盖当前进度，确定继续？')) return;
-    if (Store.loadFromSlot(idx)) {
-      this._showToast('存档已读取，刷新页面...');
-      setTimeout(function() { location.reload(); }, 600);
-    } else {
-      this._showToast('读取失败');
+	  _newSaveSlot: function() {
+	    var name = prompt('' + '存档名称：', '' + '存档 ' + (Store.slots().length + 1));
+	    if (!name) return;
+	    Store.createSlot(name);
+	    this._openSavesModal();
+	    this._showToast('' + '存档槽已创建');
+	  },
+
+	  _saveToSlot: function(idx) {
+	    Store.saveToSlot(idx);
+	    this._openSavesModal();
+	    this._showToast('' + '已保存到槽 ' + (idx + 1));
+	  },
+
+	  _loadSlot: function(idx) {
+	    if (!confirm('' + '读取存档将覆盖当前进度，确定继续？')) return;
+	    if (Store.loadFromSlot(idx)) {
+	      this._showToast('' + '存档已读取，刷新页面...');
+	      setTimeout(function() { location.reload(); }, 600);
+	    } else {
+	      this._showToast('' + '读取失败');
+	    }
+	  },
+
+	  _deleteSlot: function(idx) {
+	    if (!confirm('' + '删除此存档槽？')) return;
+	    Store.deleteSlot(idx);
+	    this._openSavesModal();
+	    this._showToast('' + '存档槽已删除');
+	  },
+
+	  /* ============================================================
+	     MODAL: ' + '我的角色' + '
+	     ============================================================ */
+	  _openCharModal: function() {
+	    var p = Store.player();
+	    var html =
+	      '<div style="margin-bottom:14px">' +
+	        '<label style="display:block;font-size:10px;color:var(--text-3);letter-spacing:.08em;margin-bottom:6px;font-family:var(--font-mono)">' + '姓名' + '</label>' +
+	        '<input type="text" id="cc-name" style="width:100%;background:rgba(14,14,22,.6);border:1px solid rgba(255,255,255,.08);border-radius:6px;padding:10px 14px;font-size:14px;color:var(--text);font-family:var(--font-ui)" value="' + App.escapeHtml(p.name || '') + '" placeholder="' + '穿越者代号' + '">' +
+	      '</div>' +
+	      '<div style="margin-bottom:14px">' +
+	        '<label style="display:block;font-size:10px;color:var(--text-3);letter-spacing:.08em;margin-bottom:6px;font-family:var(--font-mono)">' + '性别' + '</label>' +
+	        '<div style="display:flex;gap:12px">' +
+	          '<label style="font-size:13px;color:var(--text);cursor:pointer;display:flex;align-items:center;gap:6px"><input type="radio" name="cc-gender" value="male" ' + (p.gender === 'male' ? 'checked' : '') + ' style="accent-color:var(--accent)"> ' + '男' + '</label>' +
+	          '<label style="font-size:13px;color:var(--text);cursor:pointer;display:flex;align-items:center;gap:6px"><input type="radio" name="cc-gender" value="female" ' + (p.gender !== 'male' ? 'checked' : '') + ' style="accent-color:var(--accent)"> ' + '女' + '</label>' +
+	        '</div>' +
+	      '</div>' +
+	      '<div style="margin-bottom:14px">' +
+	        '<label style="display:block;font-size:10px;color:var(--text-3);letter-spacing:.08em;margin-bottom:6px;font-family:var(--font-mono)">' + '外貌描述' + '</label>' +
+	        '<textarea id="cc-appearance" style="width:100%;background:rgba(14,14,22,.6);border:1px solid rgba(255,255,255,.08);border-radius:6px;padding:10px 14px;font-size:13px;color:var(--text);font-family:var(--font-ui);resize:none;line-height:1.5" rows="3" placeholder="' + '外貌特征的简短描述' + '">' + App.escapeHtml(p.appearance || '') + '</textarea>' +
+	      '</div>' +
+	      '<div style="display:flex;gap:10px">' +
+	        '<button class="btn-accent" style="flex:2;padding:11px 0;font-size:13px;border-radius:var(--radius)" onclick="App._saveCharModal()">' + '保存' + '</button>' +
+	        '<button class="btn-secondary" style="flex:1" onclick="App._randomCharModal()">' + '随机' + '</button>' +
+	        '<button class="btn-secondary" style="flex:1" onclick="App._aiRandomCharModal()">AI' + '随机' + '</button>' +
+	      '</div>';
+		    this._openSettingsSub('我的角色', html);
+	  },
+
+  _saveCharModal: function() {
+    var p = Store.player();
+    var isNew = !p.name;
+    var name = document.getElementById('cc-name').value.trim();
+    if (!name) { this._showToast('请输入角色名'); return; }
+    p.name = name;
+    var genderRadio = document.querySelector('input[name="cc-gender"]:checked');
+    p.gender = genderRadio ? genderRadio.value : 'female';
+    p.appearance = document.getElementById('cc-appearance').value.trim();
+    if (isNew) { p.points = 100; }
+    Store.save();
+    this._backFromSettingsSub();
+    if (isNew) {
+      Store.addMessage({ type:'system', content:'穿越者「' + p.name + '」已登录NEXUS主神空间。' });
+      Store.addMessage({ type:'narrative', content:'你站在一片纯白的空间中。脚下没有地面，头顶没有天空——只有无限延伸的白，和远处悬浮着的一扇扇门。每扇门后面是一个世界。一本书。一个等待你进入的故事。\n\n主神空间的终端在你眼前展开。积分商店。穿越者通讯录。副本记录。一切准备就绪。\n\n（你可以先去积分商店看看，或者直接从副本记录中进入你的第一个世界）' });
+      this.renderAll();
     }
-  },
-
-  _deleteSlot: function(idx) {
-    if (!confirm('删除此存档槽？')) return;
-    Store.deleteSlot(idx);
     this.renderSettings();
-    this._showToast('存档槽已删除');
+    this.renderStatus();
+    this._showToast(isNew ? '穿越者 ' + p.name + ' 已登录NEXUS' : '角色已更新');
   },
+	  /* ============================================================
+	     MODAL: ' + '穿越者伙伴' + '
+	     ============================================================ */
+	  _openTravelersModal: function() {
+	    this._renderTravelersSheet();
+	  },
+	  _renderTravelersSheet: function() {
+		    var travelers = Store.travelers();
+		    var html = '';
+		    if (travelers.length === 0) {
+		      html += '<div class="settings-hint">' + '暂无穿越者伙伴' + '</div>';
+		    } else {
+		      html += '<div style="display:flex;flex-direction:column;gap:4px">';
+		      travelers.forEach(function(t) {
+		        html += '<div class="save-slot" style="cursor:default">' +
+		          '<div class="slot-info">' +
+		            '<div class="slot-name">' + App.escapeHtml(t.name) + ' <span style="font-size:9px;color:var(--text-3);font-family:var(--font-mono)">Lv.' + (t.level||1) + '</span></div>' +
+		            '<div class="slot-meta">' + App.escapeHtml((t.gender==='female'?'女':'男') + ' · ' + (t.background||t.personality||'')) + (t.online ? ' · 在线' : ' · 离线') + '</div>' +
+		          '</div>' +
+		          '<div class="slot-actions">' +
+		            '<button class="slot-action-btn" onclick="App._editTraveler(\'' + t.id + '\')">' + '编辑' + '</button>' +
+		            '<button class="slot-action-btn danger" onclick="App._deleteTraveler(\'' + t.id + '\')">' + '删除' + '</button>' +
+		          '</div>' +
+		        '</div>';
+		      });
+		      html += '</div>';
+		    }
+		    html += '<div class="settings-actions">' +
+		      '<button class="btn-accent" onclick="App._createTraveler()">+ ' + '新建伙伴' + '</button>' +
+		    '</div>';
+		    this._openSettingsSub('穿越者伙伴', html);
+	  },
 
+	  _createTraveler: function() {
+	    var html =
+	      '<div style="margin-bottom:12px"><label style="display:block;font-size:10px;color:var(--text-3);letter-spacing:.08em;margin-bottom:4px;font-family:var(--font-mono)">' + '姓名' + '</label>' +
+	        '<input type="text" id="tr-name" style="width:100%;background:rgba(14,14,22,.6);border:1px solid rgba(255,255,255,.08);border-radius:6px;padding:8px 12px;font-size:13px;color:var(--text);font-family:var(--font-ui)" placeholder="' + '伙伴姓名' + '"></div>' +
+	      '<div style="margin-bottom:12px"><label style="display:block;font-size:10px;color:var(--text-3);letter-spacing:.08em;margin-bottom:4px;font-family:var(--font-mono)">' + '性别' + '</label>' +
+	        '<div style="display:flex;gap:12px"><label style="font-size:13px;color:var(--text);cursor:pointer;display:flex;align-items:center;gap:6px"><input type="radio" name="tr-gender" value="male" checked style="accent-color:var(--accent)"> ' + '男' + '</label><label style="font-size:13px;color:var(--text);cursor:pointer;display:flex;align-items:center;gap:6px"><input type="radio" name="tr-gender" value="female" style="accent-color:var(--accent)"> ' + '女' + '</label></div></div>' +
+	      '<div style="margin-bottom:12px"><label style="display:block;font-size:10px;color:var(--text-3);letter-spacing:.08em;margin-bottom:4px;font-family:var(--font-mono)">' + '外貌' + '</label>' +
+	        '<input type="text" id="tr-appearance" style="width:100%;background:rgba(14,14,22,.6);border:1px solid rgba(255,255,255,.08);border-radius:6px;padding:8px 12px;font-size:12px;color:var(--text);font-family:var(--font-ui)" placeholder="' + '外貌描述' + '"></div>' +
+	      '<div style="margin-bottom:12px"><label style="display:block;font-size:10px;color:var(--text-3);letter-spacing:.08em;margin-bottom:4px;font-family:var(--font-mono)">' + '背景' + '</label>' +
+	        '<input type="text" id="tr-background" style="width:100%;background:rgba(14,14,22,.6);border:1px solid rgba(255,255,255,.08);border-radius:6px;padding:8px 12px;font-size:12px;color:var(--text);font-family:var(--font-ui)" placeholder="' + '穿越前背景' + '"></div>' +
+	      '<div style="margin-bottom:12px"><label style="display:block;font-size:10px;color:var(--text-3);letter-spacing:.08em;margin-bottom:4px;font-family:var(--font-mono)">' + '性格' + '</label>' +
+	        '<input type="text" id="tr-personality" style="width:100%;background:rgba(14,14,22,.6);border:1px solid rgba(255,255,255,.08);border-radius:6px;padding:8px 12px;font-size:12px;color:var(--text);font-family:var(--font-ui)" placeholder="' + '性格特征' + '"></div>' +
+	      '<button class="btn-accent" style="width:100%;padding:10px 0;font-size:12px;border-radius:var(--radius)" onclick="App._saveNewTraveler()">' + '创建伙伴' + '</button>';
+		    this._refreshSettingsSub('新建伙伴', html);
+	  },
+
+	  _saveNewTraveler: function() {
+	    var name = document.getElementById('tr-name').value.trim();
+	    if (!name) { this._showToast('' + '请输入姓名'); return; }
+	    var genderRadio = document.querySelector('input[name="tr-gender"]:checked');
+	    var gender = genderRadio ? genderRadio.value : 'male';
+	    var t = {
+	      id: 't_' + Date.now(),
+	      name: name,
+	      gender: gender,
+	      appearance: document.getElementById('tr-appearance').value.trim(),
+	      background: document.getElementById('tr-background').value.trim(),
+	      personality: document.getElementById('tr-personality').value.trim(),
+	      points: 1000, level: 1, online: true, contactUnlocked: true,
+	      isImportant: false, affection: 0, affectionRate: 'normal', longTermMemories: []
+	    };
+	    Store._db.travelers.push(t);
+	    Store.save();
+	    this._renderTravelersSheet();
+	    this._showToast('' + '伙伴已创建');
+	  },
+
+	  _editTraveler: function(id) {
+	    var t = Store.traveler(id);
+	    if (!t) return;
+	    var html =
+	      '<div style="margin-bottom:12px"><label style="display:block;font-size:10px;color:var(--text-3);letter-spacing:.08em;margin-bottom:4px;font-family:var(--font-mono)">' + '姓名' + '</label>' +
+	        '<input type="text" id="tr-name" style="width:100%;background:rgba(14,14,22,.6);border:1px solid rgba(255,255,255,.08);border-radius:6px;padding:8px 12px;font-size:13px;color:var(--text);font-family:var(--font-ui)" value="' + App.escapeHtml(t.name) + '"></div>' +
+	      '<div style="margin-bottom:12px"><label style="display:block;font-size:10px;color:var(--text-3);letter-spacing:.08em;margin-bottom:4px;font-family:var(--font-mono)">' + '性别' + '</label>' +
+	        '<div style="display:flex;gap:12px"><label style="font-size:13px;color:var(--text);cursor:pointer;display:flex;align-items:center;gap:6px"><input type="radio" name="tr-gender" value="male" ' + (t.gender==='male'?'checked':'') + ' style="accent-color:var(--accent)"> ' + '男' + '</label><label style="font-size:13px;color:var(--text);cursor:pointer;display:flex;align-items:center;gap:6px"><input type="radio" name="tr-gender" value="female" ' + (t.gender==='female'?'checked':'') + ' style="accent-color:var(--accent)"> ' + '女' + '</label></div></div>' +
+	      '<div style="margin-bottom:12px"><label style="display:block;font-size:10px;color:var(--text-3);letter-spacing:.08em;margin-bottom:4px;font-family:var(--font-mono)">' + '外貌' + '</label>' +
+	        '<input type="text" id="tr-appearance" style="width:100%;background:rgba(14,14,22,.6);border:1px solid rgba(255,255,255,.08);border-radius:6px;padding:8px 12px;font-size:12px;color:var(--text);font-family:var(--font-ui)" value="' + App.escapeHtml(t.appearance||'') + '"></div>' +
+	      '<div style="margin-bottom:12px"><label style="display:block;font-size:10px;color:var(--text-3);letter-spacing:.08em;margin-bottom:4px;font-family:var(--font-mono)">' + '背景' + '</label>' +
+	        '<input type="text" id="tr-background" style="width:100%;background:rgba(14,14,22,.6);border:1px solid rgba(255,255,255,.08);border-radius:6px;padding:8px 12px;font-size:12px;color:var(--text);font-family:var(--font-ui)" value="' + App.escapeHtml(t.background||'') + '"></div>' +
+	      '<div style="margin-bottom:12px"><label style="display:block;font-size:10px;color:var(--text-3);letter-spacing:.08em;margin-bottom:4px;font-family:var(--font-mono)">' + '性格' + '</label>' +
+	        '<input type="text" id="tr-personality" style="width:100%;background:rgba(14,14,22,.6);border:1px solid rgba(255,255,255,.08);border-radius:6px;padding:8px 12px;font-size:12px;color:var(--text);font-family:var(--font-ui)" value="' + App.escapeHtml(t.personality||'') + '"></div>' +
+	      '<div style="margin-bottom:12px"><label style="display:block;font-size:10px;color:var(--text-3);letter-spacing:.08em;margin-bottom:4px;font-family:var(--font-mono)">' + '在线状态' + '</label>' +
+	        '<div style="display:flex;gap:12px"><label style="font-size:13px;color:var(--text);cursor:pointer;display:flex;align-items:center;gap:6px"><input type="radio" name="tr-online" value="1" ' + (t.online?'checked':'') + ' style="accent-color:var(--accent)"> ' + '在线' + '</label><label style="font-size:13px;color:var(--text);cursor:pointer;display:flex;align-items:center;gap:6px"><input type="radio" name="tr-online" value="0" ' + (!t.online?'checked':'') + ' style="accent-color:var(--accent)"> ' + '离线' + '</label></div></div>' +
+	      '<button class="btn-accent" style="width:100%;padding:10px 0;font-size:12px;border-radius:var(--radius)" onclick="App._saveEditTraveler(\'' + id + '\')">' + '保存修改' + '</button>';
+		    this._refreshSettingsSub('编辑伙伴', html);
+	  },
+
+	  _saveEditTraveler: function(id) {
+	    var t = Store.traveler(id);
+	    if (!t) return;
+	    t.name = document.getElementById('tr-name').value.trim() || t.name;
+	    var genderRadio = document.querySelector('input[name="tr-gender"]:checked');
+	    t.gender = genderRadio ? genderRadio.value : t.gender;
+	    t.appearance = document.getElementById('tr-appearance').value.trim();
+	    t.background = document.getElementById('tr-background').value.trim();
+	    t.personality = document.getElementById('tr-personality').value.trim();
+	    var onlineRadio = document.querySelector('input[name="tr-online"]:checked');
+	    t.online = onlineRadio ? onlineRadio.value === '1' : t.online;
+	    Store.save();
+	    this._renderTravelersSheet();
+	    this._showToast('' + '伙伴已更新');
+	  },
+
+	  _deleteTraveler: function(id) {
+	    if (!confirm('' + '确定要删除这位伙伴吗？')) return;
+	    Store._db.travelers = Store._db.travelers.filter(function(t) { return t.id !== id; });
+	    Store.save();
+	    this._renderTravelersSheet();
+	    this._showToast('' + '伙伴已删除');
+	  },
+
+	  /* ============================================================
+	     MODAL: ' + '存档管理' + '
+	     ============================================================ */
+	  _openSavesModal: function() {
+	    var html =
+	      '<div class="save-slots" id="save-slots-list">' + App._renderSaveSlotsHTML() + '</div>' +
+	      '<div class="settings-actions">' +
+	        '<button class="btn-accent" onclick="App._newSaveSlot()">+ ' + '新建存档槽' + '</button>' +
+	      '</div>';
+		    this._openSettingsSub('存档管理', html);
+	  },
+
+	  /* ============================================================
+	     MODAL: API' + '管理' + '
+	     ============================================================ */
+	  _openApiModal: function() {
+	    var s = Store._db.settings;
+	    var html =
+	      '<div class="settings-row"><label>Base URL</label><input type="text" id="set-base-url" value="' + App.escapeHtml(s.baseUrl || '') + '" placeholder="https://api.openai.com"></div>' +
+	      '<div class="settings-row"><label>API Key</label><input type="password" id="set-api-key" value="' + App.escapeHtml(s.apiKey || '') + '" placeholder="sk-..." onblur="App._fetchModels()"></div>' +
+	      '<div class="settings-row"><label>Model</label><input type="text" id="set-model" list="model-list" value="' + App.escapeHtml(s.model || '') + '" placeholder="gpt-4o-mini" autocomplete="off"><datalist id="model-list"></datalist></div>' +
+	      '<div class="settings-actions">' +
+	        '<button class="btn-accent" onclick="App._saveSettings()">' + '保存并测试连接' + '</button>' +
+	        '<span class="connection-status untested" id="api-status"><span class="status-dot"></span>' + '未测试' + '</span>' +
+	      '</div>' +
+	      '<div class="api-test-result hidden" id="api-test-result"></div>';
+		    this._openSettingsSub('API管理', html);
+	  },
+
+	  /* ============================================================
+	     MODAL: ' + '数据' + '
+	     ============================================================ */
+	  _openDataModal: function() {
+	    var html =
+	      '<div class="settings-hint">' + '导出数据以备份，或通过JSON文件恢复。重置将清空所有游戏数据（保留API设置）。' + '</div>' +
+	      '<div class="settings-actions">' +
+	        '<button class="btn-accent" onclick="App._exportData()">' + '导出存档' + '</button>' +
+	        '<button class="btn-secondary" onclick="App._importData()">' + '导入存档' + '</button>' +
+	        '<button class="btn-danger" onclick="App._resetAll()">' + '重置所有数据' + '</button>' +
+	      '</div>';
+		    this._openSettingsSub('数据', html);
+	  },
   _saveSettings: function() {
     var s = Store._db.settings;
     s.baseUrl = document.getElementById('set-base-url').value.trim();
     s.apiKey = document.getElementById('set-api-key').value.trim();
     s.model = document.getElementById('set-model').value.trim() || 'gpt-4o-mini';
     Store.save();
-    this._showToast('设置已保存。正在测试连接...');
+
+    var statusEl = document.getElementById('api-status');
+    var resultEl = document.getElementById('api-test-result');
+    if (statusEl) { statusEl.className = 'connection-status testing'; statusEl.innerHTML = '<span class="status-dot"></span>测试中...'; }
+    if (resultEl) { resultEl.className = 'api-test-result testing'; resultEl.textContent = '正在测试 API 连接...'; resultEl.classList.remove('hidden'); }
+
     var self = this;
     AI.testConnection().then(function(resp) {
-      if (resp && resp.ok) { self._showToast('API连接成功'); }
-      else { self._showToast('连接失败：' + (resp && resp.msg || '未知错误')); }
+      if (resp && resp.ok) {
+        if (statusEl) { statusEl.className = 'connection-status success'; statusEl.innerHTML = '<span class="status-dot"></span>已连接'; }
+        if (resultEl) { resultEl.className = 'api-test-result success'; resultEl.textContent = 'API 连接成功'; }
+        self._showToast('API连接成功');
+      } else {
+        var msg = resp && resp.msg ? resp.msg : '未知错误';
+        if (statusEl) { statusEl.className = 'connection-status error'; statusEl.innerHTML = '<span class="status-dot"></span>失败'; }
+        if (resultEl) { resultEl.className = 'api-test-result error'; resultEl.textContent = '连接失败：' + msg; }
+        self._showToast('连接失败：' + msg);
+      }
+    });
+    this._fetchModels();
+  },
+
+  _fetchModels: function() {
+    var baseUrl = (document.getElementById('set-base-url') || {}).value || '';
+    var apiKey = (document.getElementById('set-api-key') || {}).value || '';
+    if (!baseUrl || !apiKey) return;
+    var url = baseUrl.replace(/\/+$/, '') + '/models';
+    var self = this;
+    fetch(url, {
+      headers: { 'Authorization': 'Bearer ' + apiKey },
+      signal: AbortSignal.timeout(8000)
+    }).then(function(res) {
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      return res.json();
+    }).then(function(data) {
+      var models = (data.data || []).map(function(m) { return m.id || ''; }).filter(function(id) { return id; }).sort();
+      var listEl = document.getElementById('model-list');
+      if (!listEl || models.length === 0) return;
+      listEl.innerHTML = models.map(function(m) { return '<option value="' + App.escapeHtml(m) + '">'; }).join('');
+      var modelInput = document.getElementById('set-model');
+      if (modelInput && !modelInput.value) {
+        var preferred = models.find(function(m) { return m.indexOf('gpt') >= 0; }) || models[0];
+        if (preferred) modelInput.value = preferred;
+      }
+      self._showToast('已获取 ' + models.length + ' 个模型');
+    }).catch(function(e) {
+      console.error('Fetch models failed:', e);
     });
   },
 
@@ -3247,9 +4174,7 @@ var App = {
       '<button class="btn-accent" onclick="App._sendTravelerMsg(\'' + travelerId + '\')">发送</button>' +
     '</div>';
 
-    document.getElementById('modal-sheet-inner').innerHTML = html;
-    document.getElementById('modal-sheet').classList.add('open');
-    this._bindSheetClose();
+    this._refreshSettingsSub(t.name, html);
 
     // Scroll chat to bottom
     setTimeout(function() {
