@@ -4,7 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#E8F8F8" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#04060A" media="(prefers-color-scheme: dark)">
 <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@500&display=swap" rel="stylesheet">
 <title>NEXUS</title>
 <style>
@@ -620,6 +622,39 @@ ul,ol{list-style:none}a{color:inherit;text-decoration:none}
   outline: none;
   -webkit-appearance: none;
   appearance: none;
+}
+.settings-row select {
+  background: rgba(14, 14, 22, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  letter-spacing: 0.04em;
+  color: var(--text);
+  text-align: right;
+  width: 180px;
+  outline: none;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8' viewBox='0 0 8 8'%3E%3Cpath d='M0 2l4 4 4-4' fill='%23999'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: left 12px center;
+  padding-left: 28px;
+}
+.settings-row select option {
+  background: #1a1a28;
+  color: var(--text);
+  font-family: var(--font-mono);
+}
+.settings-row select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(0, 168, 168, 0.15);
+}
+.settings-row .model-fallback-input {
+  width: 180px;
 }
 
 .settings-row input::placeholder {
@@ -3571,19 +3606,29 @@ var App = {
 	  /* ============================================================
 	     MODAL: API' + '管理' + '
 	     ============================================================ */
-	  _openApiModal: function() {
-	    var s = Store._db.settings;
-	    var html =
-	      '<div class="settings-row"><label>Base URL</label><input type="text" id="set-base-url" value="' + App.escapeHtml(s.baseUrl || '') + '" placeholder="https://api.openai.com"></div>' +
-	      '<div class="settings-row"><label>API Key</label><input type="password" id="set-api-key" value="' + App.escapeHtml(s.apiKey || '') + '" placeholder="sk-..." onblur="App._fetchModels()"></div>' +
-	      '<div class="settings-row"><label>Model</label><input type="text" id="set-model" list="model-list" value="' + App.escapeHtml(s.model || '') + '" placeholder="gpt-4o-mini" autocomplete="off"><datalist id="model-list"></datalist></div>' +
-	      '<div class="settings-actions">' +
-	        '<button class="btn-accent" onclick="App._saveSettings()">' + '保存并测试连接' + '</button>' +
-	        '<span class="connection-status untested" id="api-status"><span class="status-dot"></span>' + '未测试' + '</span>' +
-	      '</div>' +
-	      '<div class="api-test-result hidden" id="api-test-result"></div>';
+		  _openApiModal: function() {
+		    var s = Store._db.settings;
+		    var savedModel = s.model || '';
+		    var html =
+		      '<div class="settings-row"><label>Base URL</label><input type="text" id="set-base-url" value="' + App.escapeHtml(s.baseUrl || '') + '" placeholder="https://api.openai.com" oninput="App._onApiFieldChange()"></div>' +
+		      '<div class="settings-row"><label>API Key</label><input type="password" id="set-api-key" value="' + App.escapeHtml(s.apiKey || '') + '" placeholder="sk-..." oninput="App._onApiFieldChange()"></div>' +
+		      '<div class="settings-row"><label>Model</label><div id="model-select-wrapper"><select id="set-model">' +
+		        (savedModel ? '<option value="' + App.escapeHtml(savedModel) + '" selected>' + App.escapeHtml(savedModel.substring(0, 40)) + '</option>' : '<option value="" disabled selected>等待获取...</option>') +
+		      '</select></div></div>' +
+		      '<div class="settings-actions">' +
+		        '<button class="btn-accent" onclick="App._saveSettings()">' + '保存并测试连接' + '</button>' +
+		        '<span class="connection-status untested" id="api-status"><span class="status-dot"></span>' + '未测试' + '</span>' +
+		      '</div>' +
+		      '<div class="api-test-result hidden" id="api-test-result"></div>';
 		    this._openSettingsSub('API管理', html);
-	  },
+		    if (s.baseUrl && s.apiKey) { this._fetchModels(); }
+		  },
+
+		  _onApiFieldChange: function() {
+		    var baseUrl = (document.getElementById('set-base-url') || {}).value || '';
+		    var apiKey = (document.getElementById('set-api-key') || {}).value || '';
+		    if (baseUrl && apiKey) { this._fetchModels(); }
+		  },
 
 	  /* ============================================================
 	     MODAL: ' + '数据' + '
@@ -3602,7 +3647,8 @@ var App = {
     var s = Store._db.settings;
     s.baseUrl = document.getElementById('set-base-url').value.trim();
     s.apiKey = document.getElementById('set-api-key').value.trim();
-    s.model = document.getElementById('set-model').value.trim() || 'gpt-4o-mini';
+    var modelEl = document.getElementById('set-model');
+    s.model = (modelEl ? modelEl.value.trim() : '') || (s.model || 'gpt-4o-mini');
     Store.save();
 
     var statusEl = document.getElementById('api-status');
@@ -3626,33 +3672,47 @@ var App = {
     this._fetchModels();
   },
 
-  _fetchModels: function() {
-    var baseUrl = (document.getElementById('set-base-url') || {}).value || '';
-    var apiKey = (document.getElementById('set-api-key') || {}).value || '';
-    if (!baseUrl || !apiKey) return;
-    var url = baseUrl.replace(/\/+$/, '') + '/models';
-    var self = this;
-    fetch(url, {
-      headers: { 'Authorization': 'Bearer ' + apiKey },
-      signal: AbortSignal.timeout(8000)
-    }).then(function(res) {
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      return res.json();
-    }).then(function(data) {
-      var models = (data.data || []).map(function(m) { return m.id || ''; }).filter(function(id) { return id; }).sort();
-      var listEl = document.getElementById('model-list');
-      if (!listEl || models.length === 0) return;
-      listEl.innerHTML = models.map(function(m) { return '<option value="' + App.escapeHtml(m) + '">'; }).join('');
-      var modelInput = document.getElementById('set-model');
-      if (modelInput && !modelInput.value) {
-        var preferred = models.find(function(m) { return m.indexOf('gpt') >= 0; }) || models[0];
-        if (preferred) modelInput.value = preferred;
-      }
-      self._showToast('已获取 ' + models.length + ' 个模型');
-    }).catch(function(e) {
-      console.error('Fetch models failed:', e);
-    });
-  },
+	  _fetchModels: function() {
+	    var baseUrl = (document.getElementById('set-base-url') || {}).value || '';
+	    var apiKey = (document.getElementById('set-api-key') || {}).value || '';
+	    if (!baseUrl || !apiKey) return;
+	    var url = baseUrl.replace(/\/+$/, '') + '/models';
+	    var self = this;
+	    // Show loading state
+	    var wrapper = document.getElementById('model-select-wrapper');
+	    if (wrapper) { wrapper.innerHTML = '<select id="set-model"><option value="" disabled selected>获取中...</option></select>'; }
+	    fetch(url, {
+	      headers: { 'Authorization': 'Bearer ' + apiKey },
+	      signal: AbortSignal.timeout(8000)
+	    }).then(function(res) {
+	      if (!res.ok) throw new Error('HTTP ' + res.status);
+	      return res.json();
+	    }).then(function(data) {
+	      var models = (data.data || []).map(function(m) { return m.id || ''; }).filter(function(id) { return id; }).sort();
+	      if (models.length === 0) throw new Error('No models');
+	      var wrapper = document.getElementById('model-select-wrapper');
+	      if (!wrapper) return;
+	      var html = '<select id="set-model">';
+	      models.forEach(function(m) {
+	        html += '<option value="' + App.escapeHtml(m) + '">' + App.escapeHtml(m.substring(0, 50)) + '</option>';
+	      });
+	      html += '</select>';
+	      wrapper.innerHTML = html;
+	      // Auto-select first model (prefer gpt)
+	      var sel = document.getElementById('set-model');
+	      if (sel) {
+	        var preferred = models.find(function(m) { return m.toLowerCase().indexOf('gpt') >= 0; }) || models[0];
+	        if (preferred) sel.value = preferred;
+	      }
+	      self._showToast('已获取 ' + models.length + ' 个模型');
+	    }).catch(function(e) {
+	      console.error('Fetch models failed:', e);
+	      var wrapper = document.getElementById('model-select-wrapper');
+	      if (wrapper) {
+	        wrapper.innerHTML = '<input type="text" id="set-model" class="model-fallback-input" placeholder="获取失败，请手动输入" style="background:rgba(14,14,22,.6);border:1px solid rgba(255,255,255,.08);border-radius:6px;padding:8px 12px;font-size:11px;font-family:var(--font-mono);color:var(--text);text-align:right;outline:none" autocomplete="off">';
+	      }
+	    });
+	  },
 
   _exportData: function() {
     var json = Store.exportJSON();
